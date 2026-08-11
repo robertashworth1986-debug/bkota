@@ -2,6 +2,7 @@
 window.BKOTA_CONFIG = Object.freeze({
   venmoHandle: "",
   venmoApproved: false,
+  moderatedServiceEnabled: false,
   youtubeApiEnabled: false,
   tiktokApiEnabled: false
 });

@@ -1,5 +1,5 @@
 "use strict";
-const CACHE = "bkota-shell-v5";
+const CACHE = "bkota-shell-v6";
 const SHELL = ["./", "index.html", "kindness-cards.html", "cards.js", "styles.css", "app.js", "config.js", "privacy.html", "privacy.js", "manifest.webmanifest", "robots.txt", "sitemap.xml", "assets/bkota-mark.svg", "assets/hands-of-kindness-hero.png", "assets/hands-of-kindness-hero.webp", "assets/hands-of-kindness-hero.avif", "assets/hands-of-kindness-hero-mobile.png", "assets/hands-of-kindness-hero-mobile.webp", "assets/hands-of-kindness-hero-mobile.avif"];
 self.addEventListener("install", (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL))));
 self.addEventListener("activate", (event) => event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))));

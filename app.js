@@ -426,6 +426,16 @@ renderVideos();
 async function initializePlatform() {
   const mode = document.querySelector("#connectionMode");
   const note = document.querySelector("#connectionNote");
+  const usePrivatePreview = () => {
+    backendAvailable = false;
+    document.querySelector("#videoSubmit").textContent = "Add to private preview";
+    mode.textContent = "Private browser preview";
+    note.textContent = "Nothing leaves this browser while the moderated service is offline.";
+  };
+  if (config.moderatedServiceEnabled !== true) {
+    usePrivatePreview();
+    return;
+  }
   try {
     const health = await api("/api/health");
     if (health.publicSubmissionsEnabled !== true) throw new Error("Public submissions are not enabled.");
@@ -440,10 +450,7 @@ async function initializePlatform() {
     renderVideos();
     renderStats(stats);
   } catch {
-    backendAvailable = false;
-    document.querySelector("#videoSubmit").textContent = "Add to private preview";
-    mode.textContent = "Private browser preview";
-    note.textContent = "Nothing leaves this browser while the moderated service is offline.";
+    usePrivatePreview();
   }
 }
 
