@@ -10,6 +10,8 @@ const config = Object.hasOwn(globalThis, "BKOTA_CONFIG") && Object.isFrozen(glob
   ? globalThis.BKOTA_CONFIG
   : Object.freeze({});
 const MOTION_STORAGE_KEY = "bkota_motion_paused_v1";
+const saveDataRequested = navigator.connection?.saveData === true;
+document.documentElement.classList.toggle("save-data", saveDataRequested);
 
 function captureAttributionCode() {
   const match = location.hash.match(/^#join\?(.+)$/);
@@ -82,10 +84,12 @@ function setupMotionControl() {
 function startLivingOil() {
   const canvas = document.querySelector("#livingOil");
   if (!canvas) return;
+  const heroVisual = canvas.closest(".hero-visual");
+  const heroImage = heroVisual?.querySelector(".hero-media img");
   const context = canvas.getContext("2d", { alpha: true });
   if (!context) return;
   const reduceMotion = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
-  const saveData = navigator.connection?.saveData === true;
+  const saveData = saveDataRequested;
   let width = 0;
   let height = 0;
   let scale = 1;
@@ -94,14 +98,33 @@ function startLivingOil() {
   let heroVisible = true;
   let pageVisible = !document.hidden;
   const frameInterval = 1000 / 30;
-  const droplets = Array.from({ length: 10 }, (_, index) => ({
+  const droplets = Array.from({ length: 14 }, (_, index) => ({
     phase: (index * 0.173) % 1,
     speed: 0.000018 + (index % 4) * 0.000004,
-    radius: 0.8 + (index % 3) * 0.35,
-    sway: 0.8 + (index % 4) * 0.45
+    radius: 1 + (index % 4) * 0.34,
+    sway: 1 + (index % 5) * 0.52
   }));
 
+  function syncOilAnchor() {
+    if (!heroVisual || !heroImage?.naturalWidth || !heroImage.naturalHeight) return;
+    const box = heroVisual.getBoundingClientRect();
+    const renderedScale = Math.max(box.width / heroImage.naturalWidth, box.height / heroImage.naturalHeight);
+    const renderedWidth = heroImage.naturalWidth * renderedScale;
+    const renderedHeight = heroImage.naturalHeight * renderedScale;
+    const position = getComputedStyle(heroImage).objectPosition.split(/\s+/);
+    const percent = (value, fallback) => value?.endsWith("%") ? Math.max(0, Math.min(1, Number.parseFloat(value) / 100)) : fallback;
+    const positionX = percent(position[0], 0.5);
+    const positionY = percent(position[1], 0.5);
+    const mobileSource = heroImage.currentSrc.includes("-mobile.");
+    const anchor = mobileSource ? { x: 0.69, y: 0.365 } : { x: 0.727, y: 0.335 };
+    const screenX = (box.width - renderedWidth) * positionX + renderedWidth * anchor.x;
+    const screenY = (box.height - renderedHeight) * positionY + renderedHeight * anchor.y;
+    canvas.style.setProperty("--oil-screen-x", `${Math.max(0, Math.min(box.width, screenX)).toFixed(2)}px`);
+    canvas.style.setProperty("--oil-screen-y", `${Math.max(0, Math.min(box.height, screenY)).toFixed(2)}px`);
+  }
+
   function resize() {
+    syncOilAnchor();
     const box = canvas.getBoundingClientRect();
     scale = Math.min(devicePixelRatio || 1, 2);
     width = Math.max(1, box.width);
@@ -125,6 +148,28 @@ function startLivingOil() {
     stream.addColorStop(1, "rgba(255,196,47,0)");
     context.save();
     context.globalCompositeOperation = "screen";
+    const body = context.createLinearGradient(sourceX, sourceY, sourceX + 5, sourceY + streamLength);
+    body.addColorStop(0, "rgba(255,252,218,0)");
+    body.addColorStop(0.08, `rgba(255,239,155,${0.1 + shimmer * 0.05})`);
+    body.addColorStop(0.52, "rgba(255,197,44,0.13)");
+    body.addColorStop(0.88, "rgba(231,145,18,0.055)");
+    body.addColorStop(1, "rgba(231,145,18,0)");
+    context.save();
+    context.filter = "blur(4px)";
+    context.shadowColor = "rgba(255,190,34,0.24)";
+    context.shadowBlur = 12;
+    context.strokeStyle = body;
+    context.lineWidth = Math.max(11, width * 0.095);
+    context.lineCap = "round";
+    context.beginPath();
+    for (let step = 0; step <= 36; step += 1) {
+      const progress = step / 36;
+      const x = sourceX + Math.sin(progress * 8.5 + now * 0.00062) * (0.8 + progress * 2.4);
+      const y = sourceY + progress * streamLength;
+      if (step === 0) context.moveTo(x, y); else context.lineTo(x, y);
+    }
+    context.stroke();
+    context.restore();
     const sourceGlow = context.createRadialGradient(sourceX, sourceY + 4, 0, sourceX, sourceY + 4, 28);
     sourceGlow.addColorStop(0, `rgba(255,252,220,${0.22 + shimmer * 0.14})`);
     sourceGlow.addColorStop(0.38, "rgba(255,206,70,0.12)");
@@ -134,7 +179,7 @@ function startLivingOil() {
     context.ellipse(sourceX, sourceY + 4, 28, 10, 0, 0, Math.PI * 2);
     context.fill();
     context.lineCap = "round";
-    [{ offset: -3.5, width: 0.7 }, { offset: 0, width: 1.5 }, { offset: 3, width: 0.6 }].forEach((lane, laneIndex) => {
+    [{ offset: -4.5, width: 1.05 }, { offset: 0, width: 2.25 }, { offset: 4, width: 0.9 }].forEach((lane, laneIndex) => {
       context.beginPath();
       context.strokeStyle = stream;
       context.lineWidth = lane.width;
@@ -186,8 +231,9 @@ function startLivingOil() {
   }
 
   const resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(() => { resize(); refresh(); }) : null;
-  if (resizeObserver) resizeObserver.observe(canvas);
+  if (resizeObserver) resizeObserver.observe(heroVisual || canvas);
   else addEventListener("resize", () => { resize(); refresh(); }, { passive: true });
+  if (heroImage && !heroImage.complete) heroImage.addEventListener("load", () => { resize(); refresh(); }, { once: true });
 
   const intersectionObserver = typeof IntersectionObserver === "function" ? new IntersectionObserver(([entry]) => {
     heroVisible = entry?.isIntersecting !== false;
@@ -214,8 +260,36 @@ function startLivingOil() {
   refresh();
 }
 
+function setupGlobeDepth() {
+  const globe = document.querySelector("#kindnessWorld");
+  if (!globe || saveDataRequested || typeof matchMedia !== "function") return;
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
+  if (reduceMotion.matches || !finePointer.matches) return;
+  let frame = 0;
+  let pendingX = 0;
+  let pendingY = 0;
+  const paint = () => {
+    frame = 0;
+    globe.style.setProperty("--globe-rx", `${pendingY.toFixed(2)}deg`);
+    globe.style.setProperty("--globe-ry", `${pendingX.toFixed(2)}deg`);
+  };
+  globe.addEventListener("pointermove", (event) => {
+    const box = globe.getBoundingClientRect();
+    pendingX = ((event.clientX - box.left) / box.width - 0.5) * 7;
+    pendingY = -((event.clientY - box.top) / box.height - 0.5) * 7;
+    if (!frame) frame = requestAnimationFrame(paint);
+  }, { passive: true });
+  globe.addEventListener("pointerleave", () => {
+    pendingX = 0;
+    pendingY = 0;
+    if (!frame) frame = requestAnimationFrame(paint);
+  }, { passive: true });
+}
+
 setupMotionControl();
 try { startLivingOil(); } catch (error) { console.warn("BKOTA living-oil enhancement unavailable", error); }
+setupGlobeDepth();
 
 function readList(key) {
   try {
@@ -508,18 +582,24 @@ function renderStats(stats) {
 }
 
 const challengeText = "I joined Arthur Farmer's #CaughtBeingKind challenge: notice a good deed, ask permission, share it, and invite three friends. Be Kind One To Another — Ephesians 4:32. #BKOTA";
-document.querySelector("#shareMovement").addEventListener("click", async () => {
-  const status = document.querySelector("#shareStatus");
-  const shareUrl = new URL(location.href);
+function buildSharePayload() {
+  const canonical = document.querySelector('link[rel="canonical"]')?.href || location.href;
+  const shareUrl = new URL(canonical, location.href);
   shareUrl.search = "";
   const configuredCode = /^[A-Za-z0-9_-]{22}$/.test(config.shareCampaignCode || "") ? config.shareCampaignCode : "";
   shareUrl.hash = configuredCode ? `join?c=${configuredCode}` : "join";
+  return { text: challengeText, url: shareUrl.href, clipboard: `${challengeText}\n${shareUrl.href}` };
+}
+
+document.querySelector("#shareMovement").addEventListener("click", async () => {
+  const status = document.querySelector("#shareStatus");
+  const payload = buildSharePayload();
   const method = navigator.share ? "web-share" : "clipboard";
   const actionNonce = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : "";
   const intent = actionNonce ? sendImpact("/api/impact/share", { actionNonce, phase: "intent", method }) : Promise.resolve(false);
   try {
-    if (navigator.share) await navigator.share({ title: "BKOTA — Be Kind One To Another", text: challengeText, url: shareUrl.href });
-    else { await navigator.clipboard.writeText(`${challengeText}\n${shareUrl.href}`); status.textContent = "The movement invitation was copied."; }
+    if (navigator.share) await navigator.share({ title: "BKOTA — Be Kind One To Another", text: payload.text, url: payload.url });
+    else { await navigator.clipboard.writeText(payload.clipboard); status.textContent = "The movement invitation and website link were copied."; }
     await intent;
     if (actionNonce) void sendImpact("/api/impact/share", { actionNonce, phase: "completed", method });
   } catch (error) {
@@ -529,8 +609,9 @@ document.querySelector("#shareMovement").addEventListener("click", async () => {
 
 document.querySelector("#copyChallenge").addEventListener("click", async () => {
   const status = document.querySelector("#shareStatus");
+  const payload = buildSharePayload();
   const actionNonce = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : "";
   const intent = actionNonce ? sendImpact("/api/impact/share", { actionNonce, phase: "intent", method: "clipboard" }) : Promise.resolve(false);
-  try { await navigator.clipboard.writeText(challengeText); await intent; if (actionNonce) void sendImpact("/api/impact/share", { actionNonce, phase: "completed", method: "clipboard" }); status.textContent = "Challenge text copied—invite three friends."; }
-  catch { status.textContent = challengeText; }
+  try { await navigator.clipboard.writeText(payload.clipboard); await intent; if (actionNonce) void sendImpact("/api/impact/share", { actionNonce, phase: "completed", method: "clipboard" }); status.textContent = "Challenge text and the BKOTA website link were copied—invite three friends."; }
+  catch { status.textContent = payload.clipboard; }
 });

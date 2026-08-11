@@ -33,6 +33,7 @@
     </nav>
     <a class="nav-cta" href="#share">Share kindness</a>
   </header>
+  <nav class="mobile-dock" aria-label="BKOTA quick navigation"><a href="#story">Meet Arthur</a><a href="#challenge">Take the challenge</a><a href="#join">Share BKOTA</a></nav>
 
   <main id="main">
     <section class="hero" aria-labelledby="hero-title">
@@ -53,6 +54,7 @@
         <h1 id="hero-title">Be kind.<br><em>One to another.</em></h1>
         <p class="hero-copy">Arthur Farmer's dream is beautifully simple: one verse, one daily act of grace, and a ripple of kindness reaching every continent.</p>
         <div class="hero-actions"><a class="button primary" href="#challenge">Take the challenge</a><a class="button ghost" href="#story">Meet the dream</a></div>
+        <div class="hero-signals" aria-label="BKOTA movement foundations"><span>Arthur's original vision</span><span>Ephesians 4:32</span><span>Every continent</span></div>
         <button class="motion-toggle" id="motionToggle" type="button" aria-pressed="false">Pause background motion</button>
       </div>
       <a class="scroll-cue" href="#verse"><span>Discover BKOTA</span><i aria-hidden="true">↓</i></a>
@@ -65,7 +67,7 @@
     </section>
 
     <section class="cards-section" id="cards" aria-labelledby="cards-title">
-      <div class="cards-copy reveal"><p class="section-label">Take five. Plant five.</p><h2 id="cards-title">Put a living word into someone’s hand.</h2><p>Arthur imagines churches and neighbors carrying five or ten pocket-sized scripture cards each week—offering one to a person in line, at a restaurant, or beside them in the ordinary rhythm of life.</p><p>The invitation is gentle: offer, never pressure. Respect “no thank you.” Let the verse and the kindness surrounding it speak for themselves.</p><div class="hero-actions"><a class="button primary" href="kindness-cards.html">Print free scripture cards</a><a class="button outline" href="#challenge">Practice BKOTA first</a></div></div>
+      <div class="cards-copy reveal"><p class="section-label">Take five. Plant five.</p><h2 id="cards-title">Put a living word into someone’s hand.</h2><p>Arthur imagines churches and neighbors carrying five or ten pocket-sized scripture cards each week—offering one to a person in line, at a restaurant, or beside them in the ordinary rhythm of life.</p><p>The invitation is gentle: offer, never pressure. Respect “no thank you.” Let the verse and the kindness surrounding it speak for themselves.</p><div class="hero-actions"><a class="button primary" href="kindness-cards.html">Preview the scripture cards</a><a class="button outline" href="#challenge">Practice BKOTA first</a></div></div>
       <aside class="card-preview" aria-label="Example BKOTA scripture card"><span>BKOTA</span><blockquote>“And be ye kind one to another, tenderhearted, forgiving one another…”</blockquote><small>Ephesians 4:32 · KJV</small><strong>Be Kind One To Another</strong></aside>
     </section>
 
@@ -76,7 +78,14 @@
     </section>
 
     <section class="global-section" aria-labelledby="global-title">
-      <div class="globe" aria-hidden="true"><span></span></div>
+      <div class="globe" id="kindnessWorld" aria-hidden="true">
+        <picture class="globe-media">
+          <source type="image/avif" srcset="assets/kindness-world-3d-v1.avif">
+          <source type="image/webp" srcset="assets/kindness-world-3d-v1.webp">
+          <img src="assets/kindness-world-3d-v1.png" width="1536" height="1536" alt="" loading="lazy" decoding="async">
+        </picture>
+        <span class="orbit orbit-one"></span><span class="orbit orbit-two"></span><span class="orbit orbit-three"></span>
+      </div>
       <div class="global-copy reveal"><p class="section-label">One human family</p><h2 id="global-title">Every race. Every nation. Every neighbor.</h2><p>BKOTA welcomes people of every ethnicity and culture to join a Christ-centered movement of tenderheartedness, forgiveness, and practical love. Kindness needs no translation.</p><div class="impact-stats" aria-live="polite"><div><strong id="globalDeedCount">0</strong><span>approved kindness stories</span></div><div><strong id="continentCount">0</strong><span>continents represented by approved stories</span></div><div><strong id="kindnessGoal">1M</strong><span>Arthur's kindness goal</span></div></div><div class="continent-list" id="continentList" aria-label="Global mission"><span data-continent="Africa">Africa</span><span data-continent="Asia">Asia</span><span data-continent="Europe">Europe</span><span data-continent="North America">North America</span><span data-continent="South America">South America</span><span data-continent="Oceania">Oceania</span><span data-continent="Antarctica">Antarctica</span></div></div>
     </section>
 
@@ -112,11 +121,11 @@
     <section class="wear-section" id="wear">
       <div class="section-heading reveal"><p class="section-label">Wear the reminder</p><h2>Let the message travel.</h2><p>Early BKOTA shirt concepts from the movement. Store details are coming soon.</p></div>
       <div class="product-row" aria-label="Early shirt concepts">
-        <article class="product-concept"><img src="assets/shirt-bkota-classic.png" alt="Black BKOTA shirt reading Be Kind One To Another, Ephesians 4:32" loading="lazy"><h3>BKOTA Classic</h3></article>
-        <article class="product-concept"><img src="assets/shirt-tenderhearted.png" alt="Ivory Tenderhearted shirt with open hands and Ephesians 4:32" loading="lazy"><h3>Tenderhearted</h3></article>
-        <article class="product-concept"><img src="assets/shirt-kindness-global.png" alt="Green Kindness Is Contagious global movement shirt" loading="lazy"><h3>Kindness Worldwide</h3></article>
-        <article class="product-concept"><img src="assets/shirt-forgive-repeat.png" alt="Navy Forgive, Be Kind, Repeat farm sunrise shirt" loading="lazy"><h3>Arthur's Field</h3></article>
-        <article class="product-concept"><img src="assets/shirt-caught-kind.png" alt="Orange I Caught You Being Kind social movement shirt" loading="lazy"><h3>Caught Being Kind</h3></article>
+        <article class="product-concept"><picture><source type="image/avif" srcset="assets/shirt-bkota-classic-420.avif 420w, assets/shirt-bkota-classic-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-bkota-classic-420.webp 420w, assets/shirt-bkota-classic-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-bkota-classic.png" width="1254" height="1254" alt="Black BKOTA shirt reading Be Kind One To Another, Ephesians 4:32" loading="lazy" decoding="async"></picture><h3>BKOTA Classic</h3></article>
+        <article class="product-concept"><picture><source type="image/avif" srcset="assets/shirt-tenderhearted-420.avif 420w, assets/shirt-tenderhearted-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-tenderhearted-420.webp 420w, assets/shirt-tenderhearted-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-tenderhearted.png" width="1254" height="1254" alt="Ivory Tenderhearted shirt with open hands and Ephesians 4:32" loading="lazy" decoding="async"></picture><h3>Tenderhearted</h3></article>
+        <article class="product-concept"><picture><source type="image/avif" srcset="assets/shirt-kindness-global-420.avif 420w, assets/shirt-kindness-global-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-kindness-global-420.webp 420w, assets/shirt-kindness-global-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-kindness-global.png" width="1254" height="1254" alt="Green Kindness Is Contagious global movement shirt" loading="lazy" decoding="async"></picture><h3>Kindness Worldwide</h3></article>
+        <article class="product-concept"><picture><source type="image/avif" srcset="assets/shirt-forgive-repeat-420.avif 420w, assets/shirt-forgive-repeat-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-forgive-repeat-420.webp 420w, assets/shirt-forgive-repeat-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-forgive-repeat.png" width="1254" height="1254" alt="Navy Forgive, Be Kind, Repeat farm sunrise shirt" loading="lazy" decoding="async"></picture><h3>Arthur's Field</h3></article>
+        <article class="product-concept"><picture><source type="image/avif" srcset="assets/shirt-caught-kind-420.avif 420w, assets/shirt-caught-kind-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-caught-kind-420.webp 420w, assets/shirt-caught-kind-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-caught-kind.png" width="1254" height="1254" alt="Orange I Caught You Being Kind social movement shirt" loading="lazy" decoding="async"></picture><h3>Caught Being Kind</h3></article>
       </div>
     </section>
 

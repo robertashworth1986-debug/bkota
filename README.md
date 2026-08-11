@@ -2,7 +2,7 @@
 
 This is the public visual preview for Arthur Farmer's BKOTA movement, rooted in Ephesians 4:32.
 
-The preview includes Arthur's founder story, the kindness challenge, printable scripture cards, original visual concepts, and the hands-with-golden-oil experience. Community submissions remain on the visitor's own device while the moderated service is offline. Payments are disabled.
+The preview includes Arthur's founder story, the kindness challenge, scripture-card launch proofs, original visual concepts, the living hands-with-golden-oil experience, and a custom lapis-and-gold 3D kindness world. Community submissions remain on the visitor's own device while the moderated service is offline. Payments are disabled.
 
 The permanent BKOTA domain and moderated platform will be connected only after the domain, hosting, privacy, and account settings are verified.
 
