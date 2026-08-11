@@ -1,14 +1,57 @@
-"use strict";
+const { parseSocialVideoUrl } = globalThis.BKOTA_SOCIAL_VIDEO;
 
 const STORAGE_KEY = "bkota_feed_v2";
 const VIDEO_STORAGE_KEY = "bkota_video_wall_v1";
 const MAX_STORIES = 50;
 const MAX_VIDEOS = 24;
 let backendAvailable = false;
+let impactAvailable = false;
 const config = Object.hasOwn(globalThis, "BKOTA_CONFIG") && Object.isFrozen(globalThis.BKOTA_CONFIG)
   ? globalThis.BKOTA_CONFIG
   : Object.freeze({});
 const MOTION_STORAGE_KEY = "bkota_motion_paused_v1";
+
+function captureAttributionCode() {
+  const match = location.hash.match(/^#join\?(.+)$/);
+  if (!match) return "";
+  const code = new URLSearchParams(match[1]).get("c") || "";
+  if (!/^[A-Za-z0-9_-]{22}$/.test(code)) return "";
+  history.replaceState(history.state, "", `${location.pathname}${location.search}#join`);
+  return code;
+}
+
+const activeAttributionCode = captureAttributionCode();
+
+async function sendImpact(path, payload) {
+  if (!impactAvailable) return false;
+  try {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "same-origin",
+      referrerPolicy: "same-origin",
+      signal: AbortSignal.timeout(5000)
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function measureVisiblePageOnce() {
+  let measured = false;
+  const measure = () => {
+    if (measured || document.visibilityState !== "visible" || typeof crypto.randomUUID !== "function") return;
+    measured = true;
+    const payload = { nonce: crypto.randomUUID() };
+    if (activeAttributionCode) payload.code = activeAttributionCode;
+    void sendImpact("/api/impact/page-load", payload);
+    document.removeEventListener("visibilitychange", measure);
+  };
+  measure();
+  if (!measured) document.addEventListener("visibilitychange", measure);
+}
 
 function setupMotionControl() {
   const button = document.querySelector("#motionToggle");
@@ -271,7 +314,8 @@ storyForm.addEventListener("submit", async (event) => {
     continent: continentValue,
     anonymous: document.querySelector("#anon").checked,
     consent,
-    website: document.querySelector("#storyWebsite").value
+    website: document.querySelector("#storyWebsite").value,
+    attributionCode: activeAttributionCode || undefined
   };
   if (submission.anonymous) {
     submission.name = "";
@@ -319,19 +363,6 @@ const videoWall = document.querySelector("#videoWall");
 const videoStatus = document.querySelector("#videoStatus");
 const videoForm = document.querySelector("#videoForm");
 
-function classifyVideo(raw) {
-  try {
-    const url = new URL(raw);
-    if (url.protocol !== "https:") return null;
-    const host = url.hostname.toLowerCase().replace(/^www\./, "");
-    if (host === "youtu.be" || host === "youtube.com" || host.endsWith(".youtube.com")) return { platform: "YouTube", url: url.href };
-    if (host === "tiktok.com" || host.endsWith(".tiktok.com")) return { platform: "TikTok", url: url.href };
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 function renderVideos() {
   const items = readList(VIDEO_STORAGE_KEY).reverse();
   videoWall.replaceChildren();
@@ -342,7 +373,15 @@ function renderVideos() {
     return;
   }
   items.forEach((item) => {
-    const safe = classifyVideo(item.url);
+    if (item.example === true) {
+      const example = element("article", { className: "video-card" });
+      const body = element("div", { className: "video-card-body" });
+      body.append(element("p", { text: String(item.caption || "").slice(0, 180) }), element("span", { className: "video-platform", text: "Illustrative example · no external video" }));
+      example.append(body);
+      videoWall.append(example);
+      return;
+    }
+    const safe = parseSocialVideoUrl(item.url);
     if (!safe) return;
     const card = element("article", { className: "video-card" });
     const link = element("a", { className: "video-card-preview" });
@@ -351,7 +390,7 @@ function renderVideos() {
     link.rel = "noopener noreferrer";
     link.setAttribute("aria-label", `Watch this ${safe.platform} kindness video`);
     const body = element("div", { className: "video-card-body" });
-    body.append(element("p", { text: String(item.caption || "").slice(0, 180) }), element("span", { className: "video-platform", text: `${safe.platform} · private preview link` }));
+    body.append(element("p", { text: String(item.caption || "").slice(0, 180) }), element("span", { className: "video-platform", text: `${safe.platform} · ${backendAvailable ? "approved moderated link" : "private browser-preview link"}` }));
     addReviewLink(body, "video", item.id);
     card.append(link, body);
     videoWall.append(card);
@@ -360,10 +399,10 @@ function renderVideos() {
 
 videoForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const result = classifyVideo(document.querySelector("#videoUrl").value.trim());
+  const result = parseSocialVideoUrl(document.querySelector("#videoUrl").value.trim());
   const caption = document.querySelector("#videoCaption").value.trim();
   if (!result) {
-    videoStatus.textContent = "Please use a valid HTTPS YouTube or TikTok link.";
+    videoStatus.textContent = "Please use a direct HTTPS YouTube video, YouTube Short, or canonical TikTok video link.";
     return;
   }
   if (!caption) {
@@ -375,7 +414,7 @@ videoForm.addEventListener("submit", async (event) => {
     videoStatus.textContent = "Please confirm you have permission to share this public link.";
     return;
   }
-  const submission = { ...result, caption: caption.slice(0, 180), consent, website: document.querySelector("#videoWebsite").value };
+  const submission = { ...result, caption: caption.slice(0, 180), consent, website: document.querySelector("#videoWebsite").value, attributionCode: activeAttributionCode || undefined };
   if (backendAvailable) {
     try {
       await api("/api/videos", { method: "POST", body: JSON.stringify(submission) });
@@ -397,10 +436,10 @@ videoForm.addEventListener("submit", async (event) => {
 
 document.querySelector("#seedVideos").addEventListener("click", () => {
   saveList(VIDEO_STORAGE_KEY, [
-    { platform: "YouTube", url: "https://www.youtube.com/", caption: "A community delivered groceries and stayed to share a meal." },
-    { platform: "TikTok", url: "https://www.tiktok.com/", caption: "Strangers worked together to help a neighbor get home safely." }
+    { example: true, caption: "A community delivered groceries and stayed to share a meal." },
+    { example: true, caption: "Strangers worked together to help a neighbor get home safely." }
   ], MAX_VIDEOS);
-  videoStatus.textContent = "Two clearly labeled example stories were added.";
+  videoStatus.textContent = "Two non-clickable, clearly labeled example stories were added.";
   renderVideos();
 });
 
@@ -440,6 +479,8 @@ async function initializePlatform() {
     const health = await api("/api/health");
     if (health.publicSubmissionsEnabled !== true) throw new Error("Public submissions are not enabled.");
     backendAvailable = true;
+    impactAvailable = health.anonymousImpactEnabled === true;
+    if (impactAvailable) measureVisiblePageOnce();
     document.querySelector("#videoSubmit").textContent = "Submit for review";
     mode.textContent = "Moderated platform connected";
     note.textContent = "Submissions enter Arthur's private review queue before publication.";
@@ -462,17 +503,25 @@ function renderStats(stats) {
   document.querySelectorAll("[data-continent]").forEach((item) => {
     const count = Number(stats.byContinent?.[item.dataset.continent] || 0);
     item.classList.toggle("reached", count > 0);
-    item.title = `${count.toLocaleString()} approved ${count === 1 ? "deed" : "deeds"}`;
+    item.title = `${count.toLocaleString()} approved kindness ${count === 1 ? "story" : "stories"}`;
   });
 }
 
 const challengeText = "I joined Arthur Farmer's #CaughtBeingKind challenge: notice a good deed, ask permission, share it, and invite three friends. Be Kind One To Another — Ephesians 4:32. #BKOTA";
 document.querySelector("#shareMovement").addEventListener("click", async () => {
   const status = document.querySelector("#shareStatus");
-  const shareUrl = new URL(location.href); shareUrl.hash = "join"; shareUrl.searchParams.set("ref", "share");
+  const shareUrl = new URL(location.href);
+  shareUrl.search = "";
+  const configuredCode = /^[A-Za-z0-9_-]{22}$/.test(config.shareCampaignCode || "") ? config.shareCampaignCode : "";
+  shareUrl.hash = configuredCode ? `join?c=${configuredCode}` : "join";
+  const method = navigator.share ? "web-share" : "clipboard";
+  const actionNonce = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : "";
+  const intent = actionNonce ? sendImpact("/api/impact/share", { actionNonce, phase: "intent", method }) : Promise.resolve(false);
   try {
     if (navigator.share) await navigator.share({ title: "BKOTA — Be Kind One To Another", text: challengeText, url: shareUrl.href });
     else { await navigator.clipboard.writeText(`${challengeText}\n${shareUrl.href}`); status.textContent = "The movement invitation was copied."; }
+    await intent;
+    if (actionNonce) void sendImpact("/api/impact/share", { actionNonce, phase: "completed", method });
   } catch (error) {
     if (error.name !== "AbortError") status.textContent = "Sharing was unavailable. Try Copy challenge text.";
   }
@@ -480,6 +529,8 @@ document.querySelector("#shareMovement").addEventListener("click", async () => {
 
 document.querySelector("#copyChallenge").addEventListener("click", async () => {
   const status = document.querySelector("#shareStatus");
-  try { await navigator.clipboard.writeText(challengeText); status.textContent = "Challenge text copied—invite three friends."; }
+  const actionNonce = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : "";
+  const intent = actionNonce ? sendImpact("/api/impact/share", { actionNonce, phase: "intent", method: "clipboard" }) : Promise.resolve(false);
+  try { await navigator.clipboard.writeText(challengeText); await intent; if (actionNonce) void sendImpact("/api/impact/share", { actionNonce, phase: "completed", method: "clipboard" }); status.textContent = "Challenge text copied—invite three friends."; }
   catch { status.textContent = challengeText; }
 });
