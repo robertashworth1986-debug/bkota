@@ -1,0 +1,13 @@
+{
+  "name": "BKOTA — Be Kind One To Another",
+  "short_name": "BKOTA",
+  "description": "Arthur Farmer's Ephesians 4:32 kindness movement.",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#081426",
+  "theme_color": "#081426",
+  "icons": [
+    { "src": "assets/hands-of-kindness-hero.png", "sizes": "any", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
