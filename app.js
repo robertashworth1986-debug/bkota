@@ -8,23 +8,54 @@ let backendAvailable = false;
 const config = Object.hasOwn(globalThis, "BKOTA_CONFIG") && Object.isFrozen(globalThis.BKOTA_CONFIG)
   ? globalThis.BKOTA_CONFIG
   : Object.freeze({});
+const MOTION_STORAGE_KEY = "bkota_motion_paused_v1";
+
+function setupMotionControl() {
+  const button = document.querySelector("#motionToggle");
+  if (!button) return;
+  const query = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
+  let userPaused = false;
+  try { userPaused = localStorage.getItem(MOTION_STORAGE_KEY) === "true"; } catch {}
+
+  function applyPreference() {
+    const paused = query.matches || userPaused;
+    document.documentElement.classList.toggle("motion-paused", paused);
+    button.disabled = query.matches;
+    button.setAttribute("aria-pressed", String(paused));
+    button.textContent = query.matches ? "Background motion reduced by device setting" : userPaused ? "Resume background motion" : "Pause background motion";
+    dispatchEvent(new CustomEvent("bkota-motion-change", { detail: { paused } }));
+  }
+
+  button.addEventListener("click", () => {
+    userPaused = !userPaused;
+    try { localStorage.setItem(MOTION_STORAGE_KEY, String(userPaused)); } catch {}
+    applyPreference();
+  });
+  if (typeof query.addEventListener === "function") query.addEventListener("change", applyPreference);
+  else if (typeof query.addListener === "function") query.addListener(applyPreference);
+  applyPreference();
+}
 
 function startLivingOil() {
   const canvas = document.querySelector("#livingOil");
   if (!canvas) return;
   const context = canvas.getContext("2d", { alpha: true });
   if (!context) return;
-  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  const reduceMotion = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
+  const saveData = navigator.connection?.saveData === true;
   let width = 0;
   let height = 0;
   let scale = 1;
   let frame = 0;
-  const droplets = Array.from({ length: 34 }, (_, index) => ({
-    lane: (index % 7) / 6,
-    phase: (index * 0.137) % 1,
-    speed: 0.000035 + (index % 5) * 0.000006,
-    radius: 1.2 + (index % 4) * 0.55,
-    sway: 2 + (index % 6) * 0.8
+  let lastPaint = 0;
+  let heroVisible = true;
+  let pageVisible = !document.hidden;
+  const frameInterval = 1000 / 30;
+  const droplets = Array.from({ length: 10 }, (_, index) => ({
+    phase: (index * 0.173) % 1,
+    speed: 0.000018 + (index % 4) * 0.000004,
+    radius: 0.8 + (index % 3) * 0.35,
+    sway: 0.8 + (index % 4) * 0.45
   }));
 
   function resize() {
@@ -37,57 +68,111 @@ function startLivingOil() {
     context.setTransform(scale, 0, 0, scale, 0, 0);
   }
 
-  function draw(now = 0) {
+  function paint(now = 0) {
     context.clearRect(0, 0, width, height);
-    const mobile = width < 900;
-    const sourceX = width * (mobile ? 0.705 : 0.753);
-    const sourceY = height * (mobile ? 0.31 : 0.335);
-    const streamLength = height * (mobile ? 0.44 : 0.59);
-    const shimmer = 0.5 + Math.sin(now * 0.0017) * 0.12;
-    const stream = context.createLinearGradient(sourceX, sourceY, sourceX + 8, sourceY + streamLength);
-    stream.addColorStop(0, "rgba(255,249,194,0)");
-    stream.addColorStop(0.08, `rgba(255,244,154,${0.82 + shimmer * 0.12})`);
-    stream.addColorStop(0.48, "rgba(231,166,39,0.82)");
-    stream.addColorStop(0.84, "rgba(255,205,73,0.34)");
+    const sourceX = width * 0.5;
+    const sourceY = Math.min(24, height * 0.08);
+    const streamLength = Math.max(1, height - sourceY);
+    const shimmer = 0.5 + Math.sin(now * 0.0012) * 0.14;
+    const stream = context.createLinearGradient(sourceX, sourceY, sourceX + 4, sourceY + streamLength);
+    stream.addColorStop(0, "rgba(255,250,205,0)");
+    stream.addColorStop(0.06, `rgba(255,249,184,${0.5 + shimmer * 0.18})`);
+    stream.addColorStop(0.5, "rgba(255,220,102,0.48)");
+    stream.addColorStop(0.86, "rgba(255,205,73,0.2)");
     stream.addColorStop(1, "rgba(255,196,47,0)");
+    context.save();
+    context.globalCompositeOperation = "screen";
+    const sourceGlow = context.createRadialGradient(sourceX, sourceY + 4, 0, sourceX, sourceY + 4, 28);
+    sourceGlow.addColorStop(0, `rgba(255,252,220,${0.22 + shimmer * 0.14})`);
+    sourceGlow.addColorStop(0.38, "rgba(255,206,70,0.12)");
+    sourceGlow.addColorStop(1, "rgba(255,176,20,0)");
+    context.fillStyle = sourceGlow;
+    context.beginPath();
+    context.ellipse(sourceX, sourceY + 4, 28, 10, 0, 0, Math.PI * 2);
+    context.fill();
     context.lineCap = "round";
-    [0, 1, 2].forEach((lane) => {
+    [{ offset: -3.5, width: 0.7 }, { offset: 0, width: 1.5 }, { offset: 3, width: 0.6 }].forEach((lane, laneIndex) => {
       context.beginPath();
       context.strokeStyle = stream;
-      context.lineWidth = 1.4 + lane * 1.2;
-      for (let step = 0; step <= 24; step += 1) {
-        const progress = step / 24;
-        const x = sourceX + lane * 3.5 + Math.sin(progress * 10 + now * 0.0011 + lane) * (1.2 + progress * 3);
+      context.lineWidth = lane.width;
+      for (let step = 0; step <= 28; step += 1) {
+        const progress = step / 28;
+        const x = sourceX + lane.offset + Math.sin(progress * 9 + now * 0.00075 + laneIndex) * (0.45 + progress * 1.4);
         const y = sourceY + progress * streamLength;
         if (step === 0) context.moveTo(x, y); else context.lineTo(x, y);
       }
       context.stroke();
     });
     droplets.forEach((drop, index) => {
-      const progress = reduceMotion.matches ? drop.phase : (drop.phase + now * drop.speed) % 1;
-      const x = sourceX - 5 + drop.lane * 15 + Math.sin(progress * 13 + index) * drop.sway;
+      const staticMode = reduceMotion.matches || saveData || document.documentElement.classList.contains("motion-paused");
+      const progress = staticMode ? drop.phase : (drop.phase + now * drop.speed) % 1;
+      const x = sourceX + Math.sin(progress * 11 + index * 1.7) * drop.sway;
       const y = sourceY + progress * streamLength;
-      const alpha = Math.sin(progress * Math.PI) * 0.82;
-      const glow = context.createRadialGradient(x - 0.5, y - 0.8, 0, x, y, drop.radius * 3.4);
-      glow.addColorStop(0, `rgba(255,255,211,${alpha})`);
-      glow.addColorStop(0.35, `rgba(255,205,62,${alpha * 0.75})`);
+      const alpha = Math.sin(progress * Math.PI) * 0.48;
+      const glow = context.createRadialGradient(x, y - 0.5, 0, x, y, drop.radius * 3.2);
+      glow.addColorStop(0, `rgba(255,255,225,${alpha})`);
+      glow.addColorStop(0.4, `rgba(255,205,62,${alpha * 0.58})`);
       glow.addColorStop(1, "rgba(196,113,10,0)");
       context.fillStyle = glow;
       context.beginPath();
-      context.ellipse(x, y, drop.radius, drop.radius * 2.5, 0, 0, Math.PI * 2);
+      context.ellipse(x, y, drop.radius, drop.radius * 2.1, 0, 0, Math.PI * 2);
       context.fill();
     });
-    if (!reduceMotion.matches) frame = requestAnimationFrame(draw);
+    context.restore();
   }
 
-  const observer = new ResizeObserver(() => { resize(); if (reduceMotion.matches) draw(0); });
-  observer.observe(canvas);
-  reduceMotion.addEventListener("change", () => { cancelAnimationFrame(frame); draw(0); });
+  function shouldAnimate() {
+    return !reduceMotion.matches && !saveData && !document.documentElement.classList.contains("motion-paused") && pageVisible && heroVisible;
+  }
+
+  function schedule() {
+    if (shouldAnimate() && !frame) frame = requestAnimationFrame(tick);
+  }
+
+  function tick(now) {
+    frame = 0;
+    if (now - lastPaint >= frameInterval) { paint(now); lastPaint = now; }
+    schedule();
+  }
+
+  function refresh() {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    paint(performance.now());
+    schedule();
+  }
+
+  const resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(() => { resize(); refresh(); }) : null;
+  if (resizeObserver) resizeObserver.observe(canvas);
+  else addEventListener("resize", () => { resize(); refresh(); }, { passive: true });
+
+  const intersectionObserver = typeof IntersectionObserver === "function" ? new IntersectionObserver(([entry]) => {
+    heroVisible = entry?.isIntersecting !== false;
+    if (heroVisible) refresh(); else { cancelAnimationFrame(frame); frame = 0; }
+  }, { threshold: 0.01 }) : null;
+  if (intersectionObserver) intersectionObserver.observe(canvas);
+
+  const onMotionChange = () => refresh();
+  const onVisibilityChange = () => {
+    pageVisible = !document.hidden;
+    if (pageVisible) refresh(); else { cancelAnimationFrame(frame); frame = 0; }
+  };
+  addEventListener("bkota-motion-change", onMotionChange);
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  if (typeof reduceMotion.addEventListener === "function") reduceMotion.addEventListener("change", onMotionChange);
+  else if (typeof reduceMotion.addListener === "function") reduceMotion.addListener(onMotionChange);
+  addEventListener("pagehide", (event) => {
+    if (event.persisted) return;
+    cancelAnimationFrame(frame);
+    resizeObserver?.disconnect();
+    intersectionObserver?.disconnect();
+  }, { once: true });
   resize();
-  draw();
+  refresh();
 }
 
-startLivingOil();
+setupMotionControl();
+try { startLivingOil(); } catch (error) { console.warn("BKOTA living-oil enhancement unavailable", error); }
 
 function readList(key) {
   try {
@@ -107,6 +192,18 @@ function element(tag, options = {}) {
   if (options.className) node.className = options.className;
   if (options.text) node.textContent = options.text;
   return node;
+}
+
+function addReviewLink(card, kind, id) {
+  if (!backendAvailable || !/^[0-9a-f-]{36}$/i.test(id || "")) return;
+  card.id = `${kind}-${id}`;
+  const reviewUrl = new URL("privacy.html", location.href);
+  reviewUrl.searchParams.set("kind", kind);
+  reviewUrl.searchParams.set("id", id);
+  reviewUrl.hash = "removal";
+  const link = element("a", { className: "review-link", text: "Request privacy or removal review" });
+  link.href = reviewUrl.href;
+  card.append(link);
 }
 
 async function api(path, options = {}) {
@@ -143,6 +240,7 @@ function renderStories() {
       element("div", { className: "feed-meta", text: `${name}${city ? ` · ${city}` : ""}${continent ? ` · ${continent}` : ""} · ${date}` }),
       element("div", { text: String(item.message || "").slice(0, 280) })
     );
+    addReviewLink(card, "story", item.id);
     feedEl.append(card);
   });
 }
@@ -175,6 +273,10 @@ storyForm.addEventListener("submit", async (event) => {
     consent,
     website: document.querySelector("#storyWebsite").value
   };
+  if (submission.anonymous) {
+    submission.name = "";
+    submission.city = "";
+  }
   if (backendAvailable) {
     try {
       await api("/api/stories", { method: "POST", body: JSON.stringify(submission) });
@@ -250,6 +352,7 @@ function renderVideos() {
     link.setAttribute("aria-label", `Watch this ${safe.platform} kindness video`);
     const body = element("div", { className: "video-card-body" });
     body.append(element("p", { text: String(item.caption || "").slice(0, 180) }), element("span", { className: "video-platform", text: `${safe.platform} · private preview link` }));
+    addReviewLink(body, "video", item.id);
     card.append(link, body);
     videoWall.append(card);
   });
@@ -324,20 +427,17 @@ async function initializePlatform() {
   const mode = document.querySelector("#connectionMode");
   const note = document.querySelector("#connectionNote");
   try {
-    await api("/api/health");
+    const health = await api("/api/health");
+    if (health.publicSubmissionsEnabled !== true) throw new Error("Public submissions are not enabled.");
     backendAvailable = true;
     document.querySelector("#videoSubmit").textContent = "Submit for review";
     mode.textContent = "Moderated platform connected";
     note.textContent = "Submissions enter Arthur's private review queue before publication.";
     const [stories, videos, stats] = await Promise.all([api("/api/stories"), api("/api/videos"), api("/api/stats")]);
-    if (stories.items.length) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stories.items.map((item) => ({ ...item, anonymous: item.name === "Anonymous" }))));
-      renderStories();
-    }
-    if (videos.items.length) {
-      localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify(videos.items));
-      renderVideos();
-    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stories.items.map((item) => ({ ...item, anonymous: item.anonymous === true }))));
+    renderStories();
+    localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify(videos.items));
+    renderVideos();
     renderStats(stats);
   } catch {
     backendAvailable = false;

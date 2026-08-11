@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin.html
 Disallow: /api/admin/
 
-Sitemap: https://join.bkota.co/sitemap.xml
+Sitemap: https://robertashworth1986-debug.github.io/bkota/sitemap.xml

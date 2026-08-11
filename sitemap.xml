@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://join.bkota.co/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
-  <url><loc>https://join.bkota.co/privacy.html</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
-  <url><loc>https://join.bkota.co/kindness-cards.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://robertashworth1986-debug.github.io/bkota/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+  <url><loc>https://robertashworth1986-debug.github.io/bkota/privacy.html</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://robertashworth1986-debug.github.io/bkota/kindness-cards.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
 </urlset>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">BKOTA</title>
+  <rect width="512" height="512" rx="256" fill="#081426"/>
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#f3d790" stroke-width="12"/>
+  <text x="256" y="340" text-anchor="middle" fill="#f3d790" font-family="Georgia, 'Times New Roman', serif" font-size="250" font-weight="700">B</text>
+</svg>
