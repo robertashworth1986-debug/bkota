@@ -13,12 +13,12 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://robertashworth1986-debug.github.io/bkota/">
   <meta property="og:site_name" content="BKOTA">
-  <meta property="og:image" content="https://robertashworth1986-debug.github.io/bkota/assets/hands-of-kindness-hero.png">
+  <meta property="og:image" content="https://robertashworth1986-debug.github.io/bkota/assets/hands-of-kindness-v2.png">
   <meta property="og:image:alt" content="Open hands pouring golden oil over a sunrise landscape">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="BKOTA — Be Kind One To Another">
   <meta name="twitter:description" content="Join Arthur Farmer's Ephesians 4:32 kindness revolution.">
-  <meta name="twitter:image" content="https://robertashworth1986-debug.github.io/bkota/assets/hands-of-kindness-hero.png">
+  <meta name="twitter:image" content="https://robertashworth1986-debug.github.io/bkota/assets/hands-of-kindness-v2.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/bkota-mark.svg" type="image/svg+xml">
   <title>BKOTA — Be Kind One To Another</title>
@@ -39,11 +39,11 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-visual" aria-hidden="true">
         <picture class="hero-media">
-          <source media="(max-width: 900px) and (orientation: portrait)" type="image/avif" srcset="assets/hands-of-kindness-hero-mobile.avif">
-          <source media="(max-width: 900px) and (orientation: portrait)" type="image/webp" srcset="assets/hands-of-kindness-hero-mobile.webp">
-          <source type="image/avif" srcset="assets/hands-of-kindness-hero.avif">
-          <source type="image/webp" srcset="assets/hands-of-kindness-hero.webp">
-          <img src="assets/hands-of-kindness-hero.png" width="1774" height="887" alt="" decoding="async" fetchpriority="high">
+          <source media="(max-width: 900px) and (orientation: portrait)" type="image/avif" srcset="assets/hands-of-kindness-v2-mobile.avif">
+          <source media="(max-width: 900px) and (orientation: portrait)" type="image/webp" srcset="assets/hands-of-kindness-v2-mobile.webp">
+          <source type="image/avif" srcset="assets/hands-of-kindness-v2-1120.avif 1120w, assets/hands-of-kindness-v2.avif 1672w" sizes="100vw">
+          <source type="image/webp" srcset="assets/hands-of-kindness-v2-1120.webp 1120w, assets/hands-of-kindness-v2.webp 1672w" sizes="100vw">
+          <img src="assets/hands-of-kindness-v2.png" width="1672" height="941" alt="" decoding="async" fetchpriority="high" data-oil-x="0.729" data-oil-y="0.414" data-oil-mobile-x="0.551" data-oil-mobile-y="0.366">
         </picture>
         <div class="cloud-drift cloud-a"></div><div class="cloud-drift cloud-b"></div>
         <canvas class="living-oil" id="livingOil"></canvas>
@@ -53,9 +53,10 @@
         <p class="kicker">A movement rooted in Ephesians 4:32</p>
         <h1 id="hero-title">Be kind.<br><em>One to another.</em></h1>
         <p class="hero-copy">Arthur Farmer's dream is beautifully simple: one verse, one daily act of grace, and a ripple of kindness reaching every continent.</p>
-        <div class="hero-actions"><a class="button primary" href="#challenge">Take the challenge</a><a class="button ghost" href="#story">Meet the dream</a></div>
+        <div class="hero-actions"><a class="button primary" href="#challenge">Take the challenge</a><a class="button ghost" href="merch.html">Explore the shirts</a></div>
         <div class="hero-signals" aria-label="BKOTA movement foundations"><span>Arthur's original vision</span><span>Ephesians 4:32</span><span>Every continent</span></div>
         <button class="motion-toggle" id="motionToggle" type="button" aria-pressed="false">Pause background motion</button>
+        <a class="hero-art-link" href="assets/hands-of-kindness-v2.png" target="_blank" rel="noopener">View the full-size artwork <span aria-hidden="true">↗</span></a>
       </div>
       <a class="scroll-cue" href="#verse"><span>Discover BKOTA</span><i aria-hidden="true">↓</i></a>
     </section>
@@ -90,13 +91,14 @@
     </section>
 
     <section class="video-section" id="kindness-tv">
-      <div class="section-heading reveal"><p class="section-label">BKOTA Kindness TV</p><h2>Catch kindness in the act.</h2><p>Share a public YouTube or TikTok link showing a genuine good deed. Every connected submission enters Arthur's private review queue before it can appear; offline previews stay only in your browser.</p></div>
+      <div class="section-heading reveal"><p class="section-label">BKOTA Kindness TV</p><h2>Good deserves to<br>be passed on.</h2><p>Start with a kind act. Ask before filming, then ask before sharing. Bring your public YouTube or TikTok link here; while the community service is offline, you can keep and download a private collection on this device.</p></div>
+      <aside class="kindness-promise" aria-labelledby="kindness-promise-title"><strong id="kindness-promise-title">The person matters more than the post.</strong><p>Never make help conditional on a camera. Respect a no. Protect children and people in vulnerable moments. A written story without names or faces can be just as powerful.</p><a href="privacy.html">Read our community care guidelines <span aria-hidden="true">↗</span></a></aside>
       <div class="video-layout">
         <form id="videoForm" class="video-form" novalidate>
           <label class="hp-field" aria-hidden="true">Website<input id="videoWebsite" tabindex="-1" autocomplete="off"></label>
           <label for="videoUrl">Public YouTube or TikTok link</label><input id="videoUrl" type="url" inputmode="url" maxlength="500" placeholder="https://youtube.com/watch?v=…" required>
           <label for="videoCaption">What kindness happened?</label><textarea id="videoCaption" rows="3" maxlength="180" placeholder="A neighbor surprised a family with groceries…" required></textarea>
-          <label class="checkbox"><input type="checkbox" id="videoConsent" required><span>I have permission to share this public link and understand it will be reviewed before publication.</span></label>
+          <label class="checkbox"><input type="checkbox" id="videoConsent" required><span>I have permission from the people shown to film and share this link. I understand that saving a private preview does not submit it for publication.</span></label>
           <div class="form-actions"><button class="button primary" id="videoSubmit" type="submit">Share for review</button><button class="text-button" id="seedVideos" type="button">Show examples</button><button class="text-button danger" id="clearVideos" type="button">Clear</button></div>
           <p class="form-status" id="videoStatus" role="status" aria-live="polite"></p>
         </form>
@@ -114,19 +116,29 @@
     </section>
 
     <section class="viral-section" id="join">
-      <div class="viral-copy"><p class="section-label">The #CaughtBeingKind challenge</p><h2>See good. Film with permission. Pass it on.</h2><p>Catch a genuine act of kindness, ask permission before sharing, post it with <strong>#CaughtBeingKind</strong> and <strong>#BKOTA</strong>, then challenge three friends to notice the good around them.</p><div class="viral-actions"><button class="button primary" id="shareMovement" type="button">Share Arthur's movement</button><button class="button outline" id="copyChallenge" type="button">Copy challenge text</button></div><p class="form-status" id="shareStatus" role="status" aria-live="polite"></p></div>
-      <div class="viral-card"><span>01</span><p>Do or notice a real act of kindness.</p><span>02</span><p>Ask everyone shown for permission.</p><span>03</span><p>Share with #CaughtBeingKind and #BKOTA.</p><span>04</span><p>Invite three more people to continue the ripple.</p></div>
+      <div class="viral-copy"><p class="section-label">The #CaughtBeingKind challenge</p><h2>Do good.<br>Ask first.<br>Pass it on.</h2><p>A meal. A ride. A moment to listen. Share the kindness—not someone's private struggle—with <strong>#CaughtBeingKind</strong> and <strong>#BKOTA</strong>. Invite three friends to do a kind act of their own. No camera required.</p><div class="viral-actions"><button class="button primary" id="shareMovement" type="button">Share Arthur's movement</button><button class="button outline" id="copyChallenge" type="button">Copy challenge text</button></div><p class="form-status" id="shareStatus" role="status" aria-live="polite"></p></div>
+      <div class="viral-card"><span>01</span><p>Do or notice a real act of kindness.</p><span>02</span><p>Ask before filming and before sharing.</p><span>03</span><p>Share a story or video with #BKOTA.</p><span>04</span><p>Invite three friends. Let the kindness continue.</p></div>
     </section>
 
     <section class="wear-section" id="wear">
-      <div class="section-heading reveal"><p class="section-label">Wear the reminder</p><h2>Let the message travel.</h2><p>Early BKOTA shirt concepts from the movement. Store details are coming soon.</p></div>
-      <div class="product-row" aria-label="Early shirt concepts">
-        <article class="product-concept"><picture><source type="image/avif" srcset="assets/shirt-bkota-classic-420.avif 420w, assets/shirt-bkota-classic-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-bkota-classic-420.webp 420w, assets/shirt-bkota-classic-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-bkota-classic.png" width="1254" height="1254" alt="Black BKOTA shirt reading Be Kind One To Another, Ephesians 4:32" loading="lazy" decoding="async"></picture><h3>BKOTA Classic</h3></article>
-        <article class="product-concept"><picture><source type="image/avif" srcset="assets/shirt-tenderhearted-420.avif 420w, assets/shirt-tenderhearted-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-tenderhearted-420.webp 420w, assets/shirt-tenderhearted-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-tenderhearted.png" width="1254" height="1254" alt="Ivory Tenderhearted shirt with open hands and Ephesians 4:32" loading="lazy" decoding="async"></picture><h3>Tenderhearted</h3></article>
-        <article class="product-concept"><picture><source type="image/avif" srcset="assets/shirt-kindness-global-420.avif 420w, assets/shirt-kindness-global-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-kindness-global-420.webp 420w, assets/shirt-kindness-global-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-kindness-global.png" width="1254" height="1254" alt="Green Kindness Is Contagious global movement shirt" loading="lazy" decoding="async"></picture><h3>Kindness Worldwide</h3></article>
-        <article class="product-concept"><picture><source type="image/avif" srcset="assets/shirt-forgive-repeat-420.avif 420w, assets/shirt-forgive-repeat-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-forgive-repeat-420.webp 420w, assets/shirt-forgive-repeat-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-forgive-repeat.png" width="1254" height="1254" alt="Navy Forgive, Be Kind, Repeat farm sunrise shirt" loading="lazy" decoding="async"></picture><h3>Arthur's Field</h3></article>
-        <article class="product-concept"><picture><source type="image/avif" srcset="assets/shirt-caught-kind-420.avif 420w, assets/shirt-caught-kind-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-caught-kind-420.webp 420w, assets/shirt-caught-kind-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-caught-kind.png" width="1254" height="1254" alt="Orange I Caught You Being Kind social movement shirt" loading="lazy" decoding="async"></picture><h3>Caught Being Kind</h3></article>
+      <div class="section-heading reveal"><p class="section-label">The Ephesians 4:32 collection</p><h2>Make kindness<br>the first thing they read.</h2><p>Big, clear lettering. Thoughtful color. A verse with something to say. Designed for the message to travel farther than the shirt.</p></div>
+      <div class="merch-feature">
+        <a class="merch-feature-image" href="merch.html" aria-label="Open the BKOTA front and back shirt design studio">
+          <picture><source type="image/webp" srcset="assets/merch/bkota-studio-v2-800.webp 800w, assets/merch/bkota-studio-v2.webp 1536w" sizes="(max-width: 900px) 90vw, 57vw"><img src="assets/merch/bkota-studio-v2.png" width="1536" height="1024" alt="Navy and ivory BKOTA shirt design visualizations with large Be Kind One To Another lettering and Ephesians 4:32" loading="lazy" decoding="async"></picture>
+          <span class="merch-image-label">Design visualization · not manufactured inventory</span>
+        </a>
+        <div class="merch-feature-copy"><p class="section-label">BKOTA / Studio 01</p><h3>One verse.<br>Front and center.</h3><p>A bold reminder on the front. The full King James verse on the back. Explore colors, turn the design around, and open the artwork large enough to read every word.</p><ul class="merch-benefits"><li>Three high-contrast colorways</li><li>Large front and back artwork views</li><li>Editable vector files for a print professional</li></ul><a class="button primary" href="merch.html">Enter the design studio <span aria-hidden="true">↗</span></a><p class="merch-note">Designs are available to explore and download. Orders and payments are not enabled. A printer must approve the final garment proof.</p></div>
       </div>
+      <details class="original-concepts"><summary>Explore Arthur's original shirt concepts <span>5 designs · full-size artwork</span></summary>
+      <p>These earlier visual concepts remain part of the collection. Select a design to inspect the original image at full size.</p>
+      <div class="product-row" aria-label="Original shirt concepts">
+        <article class="product-concept"><a href="assets/shirt-bkota-classic.png" target="_blank" rel="noopener" aria-label="Inspect BKOTA Classic image at full size (opens a new tab)"><picture><source type="image/avif" srcset="assets/shirt-bkota-classic-420.avif 420w, assets/shirt-bkota-classic-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-bkota-classic-420.webp 420w, assets/shirt-bkota-classic-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-bkota-classic.png" width="1254" height="1254" alt="Black BKOTA shirt reading Be Kind One To Another, Ephesians 4:32" loading="lazy" decoding="async"></picture></a><h3>BKOTA Classic</h3></article>
+        <article class="product-concept"><a href="assets/shirt-tenderhearted.png" target="_blank" rel="noopener" aria-label="Inspect Tenderhearted image at full size (opens a new tab)"><picture><source type="image/avif" srcset="assets/shirt-tenderhearted-420.avif 420w, assets/shirt-tenderhearted-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-tenderhearted-420.webp 420w, assets/shirt-tenderhearted-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-tenderhearted.png" width="1254" height="1254" alt="Ivory Tenderhearted shirt with open hands and Ephesians 4:32" loading="lazy" decoding="async"></picture></a><h3>Tenderhearted</h3></article>
+        <article class="product-concept"><a href="assets/shirt-kindness-global.png" target="_blank" rel="noopener" aria-label="Inspect Kindness Worldwide image at full size (opens a new tab)"><picture><source type="image/avif" srcset="assets/shirt-kindness-global-420.avif 420w, assets/shirt-kindness-global-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-kindness-global-420.webp 420w, assets/shirt-kindness-global-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-kindness-global.png" width="1254" height="1254" alt="Green Kindness Is Contagious global movement shirt" loading="lazy" decoding="async"></picture></a><h3>Kindness Worldwide</h3></article>
+        <article class="product-concept"><a href="assets/shirt-forgive-repeat.png" target="_blank" rel="noopener" aria-label="Inspect Arthur's Field image at full size (opens a new tab)"><picture><source type="image/avif" srcset="assets/shirt-forgive-repeat-420.avif 420w, assets/shirt-forgive-repeat-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-forgive-repeat-420.webp 420w, assets/shirt-forgive-repeat-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-forgive-repeat.png" width="1254" height="1254" alt="Navy Forgive, Be Kind, Repeat farm sunrise shirt" loading="lazy" decoding="async"></picture></a><h3>Arthur's Field</h3></article>
+        <article class="product-concept"><a href="assets/shirt-caught-kind.png" target="_blank" rel="noopener" aria-label="Inspect Caught Being Kind image at full size (opens a new tab)"><picture><source type="image/avif" srcset="assets/shirt-caught-kind-420.avif 420w, assets/shirt-caught-kind-840.avif 840w" sizes="(max-width: 900px) 50vw, 20vw"><source type="image/webp" srcset="assets/shirt-caught-kind-420.webp 420w, assets/shirt-caught-kind-840.webp 840w" sizes="(max-width: 900px) 50vw, 20vw"><img src="assets/shirt-caught-kind.png" width="1254" height="1254" alt="Orange I Caught You Being Kind social movement shirt" loading="lazy" decoding="async"></picture></a><h3>Caught Being Kind</h3></article>
+      </div>
+      </details>
     </section>
 
     <section class="support-section" id="support">
@@ -142,17 +154,18 @@
           <label for="messageText">My act of kindness</label><textarea id="messageText" rows="4" maxlength="280" required placeholder="I listened, forgave, encouraged, helped…"></textarea>
           <div class="form-row"><label for="name">First name <small>(optional)</small></label><label for="city">City <small>(optional)</small></label><input id="name" maxlength="40" placeholder="Art"><input id="city" maxlength="60" placeholder="Nashville, TN"></div>
           <label for="continent">Continent <small>(helps show the global ripple)</small></label><select id="continent" required><option value="">Choose one</option><option>Africa</option><option>Asia</option><option>Europe</option><option>North America</option><option>South America</option><option>Oceania</option><option>Antarctica</option></select>
-          <label class="checkbox"><input type="checkbox" id="anon"><span>Publish as Anonymous. My name and city will not be stored or shown; my continent is used only for the global count.</span></label>
-          <label class="checkbox"><input type="checkbox" id="storyConsent" required><span>I consent to BKOTA reviewing this story for possible publication.</span></label>
-          <div class="form-actions"><button class="button primary" type="submit">Add my BKOTA</button><button class="text-button" type="button" id="seedDemo">Show examples</button><button class="text-button danger" type="button" id="clearFeed">Clear</button></div>
+          <label class="checkbox"><input type="checkbox" id="anon"><span>Use Anonymous. Do not store or show my name and city. My selected continent may still appear with my story.</span></label>
+          <label class="checkbox"><input type="checkbox" id="storyConsent" required><span>I have permission to share this story and have left out other people's private details. I understand that saving a private preview does not publish it.</span></label>
+          <div class="form-actions"><button class="button primary" id="storySubmit" type="submit">Add my BKOTA</button><button class="text-button" type="button" id="seedDemo">Show examples</button><button class="text-button danger" type="button" id="clearFeed">Clear</button></div>
           <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>
         </form>
+        <div class="collection-tools"><div><strong>Your kindness collection belongs to you.</strong><p>Download your saved stories and video links as a JSON file. It is not a public post, and it does not download the videos themselves.</p></div><button class="button outline" id="downloadCollection" type="button">Download my collection</button><p id="collectionStatus" class="form-status" role="status" aria-live="polite"></p></div>
         <div class="feed" id="feed" aria-live="polite"></div>
       </div>
     </section>
   </main>
 
-  <footer><a class="brand footer-brand" href="#top"><span class="brand-mark">B</span><span>BKOTA</span></a><p>Be Kind One To Another · Ephesians 4:32</p><p class="footer-note">Arthur Farmer's vision. A dream planted with faith and built with love.</p><p><a href="privacy.html">Privacy & community safety</a></p></footer>
-  <script src="config.js"></script><script src="social-video.js"></script><script src="app.js"></script><script src="register-sw.js"></script>
+  <footer><a class="brand footer-brand" href="#top"><span class="brand-mark">B</span><span>BKOTA</span></a><p>Be Kind One To Another · Ephesians 4:32</p><p class="footer-note">Arthur Farmer's vision. A dream planted with faith and built with love.</p><p><a href="merch.html">Shirt design studio</a> · <a href="privacy.html">Privacy & community safety</a></p></footer>
+  <script src="config.js"></script><script src="social-video.js"></script><script src="community.js"></script><script src="app.js"></script><script src="register-sw.js"></script>
 </body>
 </html>

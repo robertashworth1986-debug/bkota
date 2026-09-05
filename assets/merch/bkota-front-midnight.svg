@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="12in" height="15in" viewBox="0 0 4000 5000" role="img" aria-labelledby="bkota-front-title bkota-front-description">
+  <title id="bkota-front-title">BKOTA — BE KIND ONE TO ANOTHER. Ephesians 4:32.</title>
+  <desc id="bkota-front-description">Front artwork. Midnight palette; bold and clear lettering. Transparent background, two spot-color design references, editable text. Font dependency: Arial, Helvetica, sans-serif. Printer review, font verification or outlining, garment sizing, ink separations, underbase, and a physical proof are required before production. Coordinate grid 4000 by 5000; artboard 12 by 15 inches. All artwork reserved for BKOTA.</desc>
+  <g fill="none" stroke="#f3d790" stroke-width="16"><circle cx="2000" cy="740" r="215"/><circle cx="2000" cy="740" r="248" stroke-width="5"/></g><text x="2000" y="850" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="325" font-weight="700" fill="#f3d790">B</text>
+  <g text-anchor="middle" fill="#fff5dd" font-family="Arial, Helvetica, sans-serif" font-weight="700">
+    <text x="2000" y="1820" font-size="850" textLength="3310" lengthAdjust="spacingAndGlyphs">BE KIND</text>
+    <text x="2000" y="2380" font-size="385" letter-spacing="32" textLength="2470" lengthAdjust="spacingAndGlyphs">ONE TO</text>
+    <text x="2000" y="2865" font-size="495" textLength="3290" lengthAdjust="spacingAndGlyphs">ANOTHER</text>
+  </g>
+  <path d="M660 3220 H3340" fill="none" stroke="#f3d790" stroke-width="13"/>
+  <text x="2000" y="3580" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="215" font-weight="700" letter-spacing="15" fill="#f3d790">EPHESIANS 4:32</text>
+  <text x="2000" y="4110" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="230" font-weight="700" letter-spacing="62" fill="#fff5dd">BKOTA</text>
+  <path d="M1300 4370 Q2000 4050 2700 4370 M1030 4540 Q2000 4080 2970 4540" fill="none" stroke="#f3d790" stroke-width="14" stroke-linecap="round"/>
+</svg>

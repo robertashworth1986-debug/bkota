@@ -1,0 +1,14 @@
+{
+  "name": "bkota-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Arthur Farmer's BKOTA movement and readable Ephesians 4:32 merchandise",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "build": "node tools/build-static.mjs",
+    "media": "node tools/optimize-merch.mjs",
+    "media:hero": "node tools/optimize-hero.mjs"
+  },
+  "devDependencies": { "sharp": "0.35.4" }
+}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="12in" height="15in" viewBox="0 0 4000 5000" role="img" aria-labelledby="bkota-back-title bkota-back-description">
+  <title id="bkota-back-title">BKOTA — Ephesians 4:32, King James Version. And be ye kind one to another, tenderhearted, forgiving one another, even as God for Christ’s sake hath forgiven you.</title>
+  <desc id="bkota-back-description">Back artwork. Midnight palette; bold and clear lettering. Transparent background, two spot-color design references, editable text. Font dependency: Arial, Helvetica, sans-serif. Printer review, font verification or outlining, garment sizing, ink separations, underbase, and a physical proof are required before production. Coordinate grid 4000 by 5000; artboard 12 by 15 inches. All artwork reserved for BKOTA.</desc>
+  <text x="2000" y="590" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="195" font-weight="700" letter-spacing="49" fill="#f3d790">BKOTA</text>
+  <path d="M660 850 H3340" fill="none" stroke="#f3d790" stroke-width="13"/>
+  <g text-anchor="middle" fill="#fff5dd" font-family="Arial, Helvetica, sans-serif" font-weight="700">
+    <text x="2000" y="1520" font-size="280">And be ye kind</text>
+    <text x="2000" y="1915" font-size="280">one to another,</text>
+    <text x="2000" y="2310" font-size="280">tenderhearted,</text>
+    <text x="2000" y="2705" font-size="280" textLength="3060" lengthAdjust="spacingAndGlyphs">forgiving one another,</text>
+    <text x="2000" y="3100" font-size="280">even as God</text>
+    <text x="2000" y="3495" font-size="280">for Christ’s sake</text>
+    <text x="2000" y="3890" font-size="280">hath forgiven you.</text>
+  </g>
+  <path d="M660 4230 H3340" fill="none" stroke="#f3d790" stroke-width="13"/>
+  <text x="2000" y="4590" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="195" font-weight="700" letter-spacing="9" fill="#f3d790">EPHESIANS 4:32 · KJV</text>
+</svg>
