@@ -1,11 +1,17 @@
 const { parseSocialVideoUrl } = globalThis.BKOTA_SOCIAL_VIDEO;
+const { STORY_KEY: STORAGE_KEY, VIDEO_KEY: VIDEO_STORAGE_KEY, readCollection, appendCollection, clearCollection, exportCollection, storageErrorMessage } = globalThis.BKOTA_COMMUNITY;
 
-const STORAGE_KEY = "bkota_feed_v2";
-const VIDEO_STORAGE_KEY = "bkota_video_wall_v1";
 const MAX_STORIES = 50;
 const MAX_VIDEOS = 24;
 let backendAvailable = false;
 let impactAvailable = false;
+let approvedStories = [];
+let approvedVideos = [];
+let showStoryExamples = false;
+let showVideoExamples = false;
+let storySubmitting = false;
+let videoSubmitting = false;
+const browserStorage = () => globalThis.localStorage;
 const config = Object.hasOwn(globalThis, "BKOTA_CONFIG") && Object.isFrozen(globalThis.BKOTA_CONFIG)
   ? globalThis.BKOTA_CONFIG
   : Object.freeze({});
@@ -107,7 +113,10 @@ function startLivingOil() {
 
   function syncOilAnchor() {
     if (!heroVisual || !heroImage?.naturalWidth || !heroImage.naturalHeight) return;
-    const box = heroVisual.getBoundingClientRect();
+    // Anchor in local CSS pixels. The animated parent transform must not be
+    // measured here and then applied a second time to its own canvas child.
+    const box = { width: heroVisual.clientWidth, height: heroVisual.clientHeight };
+    if (!box.width || !box.height) return;
     const renderedScale = Math.max(box.width / heroImage.naturalWidth, box.height / heroImage.naturalHeight);
     const renderedWidth = heroImage.naturalWidth * renderedScale;
     const renderedHeight = heroImage.naturalHeight * renderedScale;
@@ -115,8 +124,17 @@ function startLivingOil() {
     const percent = (value, fallback) => value?.endsWith("%") ? Math.max(0, Math.min(1, Number.parseFloat(value) / 100)) : fallback;
     const positionX = percent(position[0], 0.5);
     const positionY = percent(position[1], 0.5);
-    const mobileSource = heroImage.currentSrc.includes("-mobile.");
-    const anchor = mobileSource ? { x: 0.69, y: 0.365 } : { x: 0.727, y: 0.335 };
+    const mobileSource = /-mobile(?:[.-]|$)/.test(heroImage.currentSrc);
+    const fallback = mobileSource ? { x: 0.69, y: 0.365 } : { x: 0.727, y: 0.335 };
+    const ratio = (value, defaultValue) => {
+      if (typeof value !== "string" || value.trim() === "") return defaultValue;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : defaultValue;
+    };
+    const anchor = {
+      x: ratio(mobileSource ? heroImage.dataset.oilMobileX : heroImage.dataset.oilX, fallback.x),
+      y: ratio(mobileSource ? heroImage.dataset.oilMobileY : heroImage.dataset.oilY, fallback.y)
+    };
     const screenX = (box.width - renderedWidth) * positionX + renderedWidth * anchor.x;
     const screenY = (box.height - renderedHeight) * positionY + renderedHeight * anchor.y;
     canvas.style.setProperty("--oil-screen-x", `${Math.max(0, Math.min(box.width, screenX)).toFixed(2)}px`);
@@ -125,10 +143,9 @@ function startLivingOil() {
 
   function resize() {
     syncOilAnchor();
-    const box = canvas.getBoundingClientRect();
     scale = Math.min(devicePixelRatio || 1, 2);
-    width = Math.max(1, box.width);
-    height = Math.max(1, box.height);
+    width = Math.max(1, canvas.clientWidth);
+    height = Math.max(1, canvas.clientHeight);
     canvas.width = Math.round(width * scale);
     canvas.height = Math.round(height * scale);
     context.setTransform(scale, 0, 0, scale, 0, 0);
@@ -233,7 +250,10 @@ function startLivingOil() {
   const resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(() => { resize(); refresh(); }) : null;
   if (resizeObserver) resizeObserver.observe(heroVisual || canvas);
   else addEventListener("resize", () => { resize(); refresh(); }, { passive: true });
-  if (heroImage && !heroImage.complete) heroImage.addEventListener("load", () => { resize(); refresh(); }, { once: true });
+  // Picture sources can finish loading after the resize that selected them.
+  // Keep listening even when the initial image is already complete.
+  const onHeroImageLoad = () => { resize(); refresh(); };
+  heroImage?.addEventListener("load", onHeroImageLoad);
 
   const intersectionObserver = typeof IntersectionObserver === "function" ? new IntersectionObserver(([entry]) => {
     heroVisible = entry?.isIntersecting !== false;
@@ -250,12 +270,16 @@ function startLivingOil() {
   document.addEventListener("visibilitychange", onVisibilityChange);
   if (typeof reduceMotion.addEventListener === "function") reduceMotion.addEventListener("change", onMotionChange);
   else if (typeof reduceMotion.addListener === "function") reduceMotion.addListener(onMotionChange);
-  addEventListener("pagehide", (event) => {
+  const onPageHide = (event) => {
     if (event.persisted) return;
     cancelAnimationFrame(frame);
     resizeObserver?.disconnect();
     intersectionObserver?.disconnect();
-  }, { once: true });
+    heroImage?.removeEventListener("load", onHeroImageLoad);
+    removeEventListener("pagehide", onPageHide);
+  };
+  // A persisted pagehide must not consume final-cleanup registration.
+  addEventListener("pagehide", onPageHide);
   resize();
   refresh();
 }
@@ -291,19 +315,6 @@ setupMotionControl();
 try { startLivingOil(); } catch (error) { console.warn("BKOTA living-oil enhancement unavailable", error); }
 setupGlobeDepth();
 
-function readList(key) {
-  try {
-    const value = JSON.parse(localStorage.getItem(key) || "[]");
-    return Array.isArray(value) ? value : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveList(key, items, limit) {
-  localStorage.setItem(key, JSON.stringify(items.slice(-limit)));
-}
-
 function element(tag, options = {}) {
   const node = document.createElement(tag);
   if (options.className) node.className = options.className;
@@ -312,7 +323,7 @@ function element(tag, options = {}) {
 }
 
 function addReviewLink(card, kind, id) {
-  if (!backendAvailable || !/^[0-9a-f-]{36}$/i.test(id || "")) return;
+  if (!/^[0-9a-f-]{36}$/i.test(id || "")) return;
   card.id = `${kind}-${id}`;
   const reviewUrl = new URL("privacy.html", location.href);
   reviewUrl.searchParams.set("kind", kind);
@@ -323,47 +334,82 @@ function addReviewLink(card, kind, id) {
   card.append(link);
 }
 
-async function api(path, options = {}) {
+async function api(path, options = {}, expectedSubmissionKind = "") {
   const response = await fetch(path, {
     ...options,
+    cache: "no-store",
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     signal: AbortSignal.timeout(6000)
   });
+  if (expectedSubmissionKind) {
+    const mediaType = response.headers?.get("content-type")?.split(";")[0].trim().toLowerCase();
+    if (response.redirected || mediaType !== "application/json") throw new Error("No confirmed submission receipt.");
+  }
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "BKOTA service request failed.");
+  if (!response.ok) throw new Error(payload?.error || "BKOTA service request failed.");
+  if (expectedSubmissionKind) {
+    // Client contract for a future verified service, not an implemented backend:
+    // { accepted: true, kind: "story" | "video", id: UUID, status: "pending" }.
+    // HTTP success, an empty object, or a public-feed response is not a receipt.
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)
+      || payload.accepted !== true || payload.kind !== expectedSubmissionKind
+      || payload.status !== "pending" || typeof payload.id !== "string" || !uuid.test(payload.id)) {
+      throw new Error("No confirmed submission receipt.");
+    }
+  }
   return payload;
 }
 
 const feedEl = document.querySelector("#feed");
 const storyForm = document.querySelector("#bkotaForm");
 const storyStatus = document.querySelector("#formStatus");
+const storySubmit = storyForm.querySelector('[type="submit"]');
+
+function collectionNotice(container, text) {
+  container.append(element("p", { className: "collection-notice", text }));
+}
 
 function renderStories() {
-  const items = readList(STORAGE_KEY).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const local = readCollection(browserStorage, STORAGE_KEY);
+  const items = [
+    ...approvedStories.map((item) => ({ ...item, source: "approved" })),
+    ...local.items.map((item) => ({ ...item, source: "private" }))
+  ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   feedEl.replaceChildren();
+  if (!local.ok) collectionNotice(feedEl, storageErrorMessage(local.code));
+  if (showStoryExamples) {
+    ["I checked on an old friend and stayed long enough to really listen.", "I chose forgiveness instead of carrying yesterday's anger into today."].forEach((message) => {
+      const example = element("article", { className: "feed-card" });
+      example.append(element("div", { className: "feed-meta", text: "Illustrative example · not a real submission" }), element("div", { text: message }));
+      feedEl.append(example);
+    });
+  }
   if (!items.length) {
     const card = element("article", { className: "feed-card" });
-    card.append(element("div", { className: "feed-meta", text: "The wall is ready" }), element("div", { text: "Be the first to add an act of kindness." }));
+    card.append(element("div", { className: "feed-meta", text: "Your kindness belongs here" }), element("div", { text: backendAvailable ? "No stories are available to display yet. A new submission goes to human review first." : "Save a story to your private collection. It is not sent to Arthur or posted publicly." }));
     feedEl.append(card);
     return;
   }
   items.forEach((item) => {
     const name = item.anonymous ? "Anonymous" : String(item.name || "A friend").slice(0, 40);
-    const city = String(item.city || "").slice(0, 60);
+    const city = item.anonymous ? "" : String(item.city || "").slice(0, 60);
     const continent = String(item.continent || "").slice(0, 20);
     const date = Number.isNaN(Date.parse(item.createdAt)) ? "Recently" : new Date(item.createdAt).toLocaleDateString();
     const card = element("article", { className: "feed-card" });
     card.append(
       element("div", { className: "feed-meta", text: `${name}${city ? ` · ${city}` : ""}${continent ? ` · ${continent}` : ""} · ${date}` }),
+      element("div", { className: "feed-meta", text: item.source === "approved" ? "Approved community story" : item.localOnly === true ? "Private on this browser · not submitted" : "Older browser copy · submission history unknown" }),
       element("div", { text: String(item.message || "").slice(0, 280) })
     );
-    addReviewLink(card, "story", item.id);
+    if (item.source === "approved") addReviewLink(card, "story", item.id);
     feedEl.append(card);
   });
 }
 
 storyForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (storySubmitting) return;
   const messageInput = document.querySelector("#messageText");
   const message = messageInput.value.trim();
   if (!message) {
@@ -396,40 +442,46 @@ storyForm.addEventListener("submit", async (event) => {
     submission.city = "";
   }
   if (backendAvailable) {
+    storySubmitting = true;
+    storySubmit.disabled = true;
+    storyStatus.textContent = "Sending to the private review queue…";
     try {
-      await api("/api/stories", { method: "POST", body: JSON.stringify(submission) });
+      const receipt = await api("/api/stories", { method: "POST", body: JSON.stringify(submission) }, "story");
       storyForm.reset();
-      storyStatus.textContent = "Thank you—your story is in Arthur's moderation queue.";
+      storyStatus.textContent = `Your story was accepted into the moderation queue. Reference: ${receipt.id}. It has not been approved or published.`;
       return;
     } catch (error) {
-      storyStatus.textContent = `${error.message} Your story was not sent.`;
+      storyStatus.textContent = "A submission receipt could not be confirmed. Your story is still in the form. Do not immediately resubmit: a connection problem can hide a successful delivery.";
       return;
+    } finally {
+      storySubmitting = false;
+      storySubmit.disabled = false;
     }
   }
-  const items = readList(STORAGE_KEY);
-  items.push({
+  const saved = appendCollection(browserStorage, STORAGE_KEY, {
     id: crypto.randomUUID?.() || crypto.getRandomValues(new Uint32Array(4)).join("-"),
     ...submission,
+    localOnly: true,
     createdAt: new Date().toISOString()
-  });
-  saveList(STORAGE_KEY, items, MAX_STORIES);
+  }, MAX_STORIES);
+  if (!saved.ok) { storyStatus.textContent = storageErrorMessage(saved.code); return; }
   storyForm.reset();
-  storyStatus.textContent = "Your kindness was added to this private preview.";
+  storyStatus.textContent = "Saved privately in this browser—not submitted or published. Download your collection to keep a copy.";
   renderStories();
 });
 
 document.querySelector("#seedDemo").addEventListener("click", () => {
-  saveList(STORAGE_KEY, [
-    { name: "Arthur", city: "Tennessee", continent: "North America", message: "I checked on an old friend and stayed long enough to really listen.", anonymous: false, createdAt: new Date().toISOString() },
-    { name: "", city: "", continent: "Europe", message: "I chose forgiveness instead of carrying yesterday's anger into today.", anonymous: true, createdAt: new Date(Date.now() - 86400000).toISOString() }
-  ], MAX_STORIES);
-  storyStatus.textContent = "Two example stories were added.";
+  showStoryExamples = !showStoryExamples;
+  document.querySelector("#seedDemo").textContent = showStoryExamples ? "Hide examples" : "Show examples";
+  storyStatus.textContent = showStoryExamples ? "Showing two illustrative examples. Your saved collection is unchanged; examples are not real submissions or public impact." : "Examples hidden. Your saved collection is unchanged.";
   renderStories();
 });
 
 document.querySelector("#clearFeed").addEventListener("click", () => {
-  localStorage.removeItem(STORAGE_KEY);
-  storyStatus.textContent = "The private preview was cleared.";
+  if (!confirm("Clear stories saved in this browser? Download your collection first if you want to keep it. This does not remove public stories or pending submissions.")) return;
+  const cleared = clearCollection(browserStorage, STORAGE_KEY);
+  if (!cleared.ok) { storyStatus.textContent = "The private stories could not be cleared. Browser storage is unavailable; no successful removal was confirmed."; return; }
+  storyStatus.textContent = "Private stories were cleared from this browser. Public stories and pending submissions are unchanged.";
   renderStories();
 });
 
@@ -438,11 +490,22 @@ const videoStatus = document.querySelector("#videoStatus");
 const videoForm = document.querySelector("#videoForm");
 
 function renderVideos() {
-  const items = readList(VIDEO_STORAGE_KEY).reverse();
+  const local = readCollection(browserStorage, VIDEO_STORAGE_KEY);
+  const items = [
+    ...approvedVideos.map((item) => ({ ...item, source: "approved" })),
+    ...local.items.map((item) => ({ ...item, source: "private" }))
+  ].reverse();
   videoWall.replaceChildren();
+  if (!local.ok) collectionNotice(videoWall, storageErrorMessage(local.code));
+  if (showVideoExamples) {
+    items.unshift(
+      { example: true, caption: "A community delivered groceries and stayed to share a meal." },
+      { example: true, caption: "Neighbors worked together to help someone get home safely." }
+    );
+  }
   if (!items.length) {
     const empty = element("div", { className: "empty-state" });
-    empty.append(element("strong", { text: "Kindness TV is ready for its first story." }), document.createElement("br"), document.createTextNode("Add a public YouTube or TikTok link to preview the future community wall."));
+    empty.append(element("strong", { text: "Start with kindness. Ask before filming." }), document.createElement("br"), document.createTextNode(backendAvailable ? "Share a consented YouTube or TikTok link for human review." : "Save a consented YouTube or TikTok link privately. No video is uploaded or published here."));
     videoWall.append(empty);
     return;
   }
@@ -450,7 +513,7 @@ function renderVideos() {
     if (item.example === true) {
       const example = element("article", { className: "video-card" });
       const body = element("div", { className: "video-card-body" });
-      body.append(element("p", { text: String(item.caption || "").slice(0, 180) }), element("span", { className: "video-platform", text: "Illustrative example · no external video" }));
+      body.append(element("p", { text: String(item.caption || "").slice(0, 180) }), element("span", { className: "video-platform", text: "Illustrative example · not a real submission · no external video" }));
       example.append(body);
       videoWall.append(example);
       return;
@@ -463,9 +526,11 @@ function renderVideos() {
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     link.setAttribute("aria-label", `Watch this ${safe.platform} kindness video`);
+    link.append(element("span", { className: "video-watch-label", text: `Watch on ${safe.platform} ↗` }));
     const body = element("div", { className: "video-card-body" });
-    body.append(element("p", { text: String(item.caption || "").slice(0, 180) }), element("span", { className: "video-platform", text: `${safe.platform} · ${backendAvailable ? "approved moderated link" : "private browser-preview link"}` }));
-    addReviewLink(body, "video", item.id);
+    const entryStatus = item.source === "approved" ? "approved community link" : item.localOnly === true ? "private on this browser · not submitted" : "older browser copy · submission history unknown";
+    body.append(element("p", { text: String(item.caption || "").slice(0, 180) }), element("span", { className: "video-platform", text: `${safe.platform} · ${entryStatus}` }));
+    if (item.source === "approved") addReviewLink(body, "video", item.id);
     card.append(link, body);
     videoWall.append(card);
   });
@@ -473,6 +538,7 @@ function renderVideos() {
 
 videoForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (videoSubmitting) return;
   const result = parseSocialVideoUrl(document.querySelector("#videoUrl").value.trim());
   const caption = document.querySelector("#videoCaption").value.trim();
   if (!result) {
@@ -485,42 +551,73 @@ videoForm.addEventListener("submit", async (event) => {
   }
   const consent = document.querySelector("#videoConsent").checked;
   if (!consent) {
-    videoStatus.textContent = "Please confirm you have permission to share this public link.";
+    videoStatus.textContent = "Please confirm permission to film and share from everyone identifiable. A public link alone does not establish permission.";
     return;
   }
   const submission = { ...result, caption: caption.slice(0, 180), consent, website: document.querySelector("#videoWebsite").value, attributionCode: activeAttributionCode || undefined };
   if (backendAvailable) {
+    videoSubmitting = true;
+    document.querySelector("#videoSubmit").disabled = true;
+    videoStatus.textContent = "Sending to the private review queue…";
     try {
-      await api("/api/videos", { method: "POST", body: JSON.stringify(submission) });
+      const receipt = await api("/api/videos", { method: "POST", body: JSON.stringify(submission) }, "video");
       videoForm.reset();
-      videoStatus.textContent = "Thank you—the link is in Arthur's moderation queue.";
+      videoStatus.textContent = `Your video link was accepted into the moderation queue. Reference: ${receipt.id}. It has not been approved or published.`;
       return;
     } catch (error) {
-      videoStatus.textContent = `${error.message} The link was not sent.`;
+      videoStatus.textContent = "A submission receipt could not be confirmed. The link is still in the form. Do not immediately resubmit: a connection problem can hide a successful delivery.";
       return;
+    } finally {
+      videoSubmitting = false;
+      document.querySelector("#videoSubmit").disabled = false;
     }
   }
-  const items = readList(VIDEO_STORAGE_KEY);
-  items.push({ ...submission, createdAt: new Date().toISOString() });
-  saveList(VIDEO_STORAGE_KEY, items, MAX_VIDEOS);
+  const saved = appendCollection(browserStorage, VIDEO_STORAGE_KEY, { ...submission, localOnly: true, createdAt: new Date().toISOString() }, MAX_VIDEOS);
+  if (!saved.ok) { videoStatus.textContent = storageErrorMessage(saved.code); return; }
   videoForm.reset();
-  videoStatus.textContent = "Added to this browser's private Kindness TV preview.";
+  videoStatus.textContent = "Link saved privately in this browser—not submitted or published. The video stays on its original platform.";
   renderVideos();
 });
 
 document.querySelector("#seedVideos").addEventListener("click", () => {
-  saveList(VIDEO_STORAGE_KEY, [
-    { example: true, caption: "A community delivered groceries and stayed to share a meal." },
-    { example: true, caption: "Strangers worked together to help a neighbor get home safely." }
-  ], MAX_VIDEOS);
-  videoStatus.textContent = "Two non-clickable, clearly labeled example stories were added.";
+  showVideoExamples = !showVideoExamples;
+  document.querySelector("#seedVideos").textContent = showVideoExamples ? "Hide examples" : "Show examples";
+  videoStatus.textContent = showVideoExamples ? "Showing illustrative examples only. No real videos or submissions were added; your collection is unchanged." : "Examples hidden. Your saved collection is unchanged.";
   renderVideos();
 });
 
 document.querySelector("#clearVideos").addEventListener("click", () => {
-  localStorage.removeItem(VIDEO_STORAGE_KEY);
-  videoStatus.textContent = "The private video preview was cleared.";
+  if (!confirm("Clear video links saved in this browser? Download your collection first if you want to keep it. This does not delete videos from their platforms, public links, or pending submissions.")) return;
+  const cleared = clearCollection(browserStorage, VIDEO_STORAGE_KEY);
+  if (!cleared.ok) { videoStatus.textContent = "The private video links could not be cleared. Browser storage is unavailable; no successful removal was confirmed."; return; }
+  videoStatus.textContent = "Private video links were cleared from this browser. External videos, public links, and pending submissions are unchanged.";
   renderVideos();
+});
+
+document.querySelector("#downloadCollection")?.addEventListener("click", () => {
+  const status = document.querySelector("#collectionStatus") || storyStatus;
+  const exported = exportCollection(browserStorage, new Date().toISOString());
+  if (!exported.ok) {
+    status.textContent = `No download was created. ${storageErrorMessage(exported.code)}`;
+    return;
+  }
+  let objectUrl;
+  let link;
+  try {
+    const blob = new Blob([JSON.stringify(exported.data, null, 2)], { type: "application/json" });
+    objectUrl = URL.createObjectURL(blob);
+    link = element("a");
+    link.href = objectUrl;
+    link.download = `bkota-private-collection-${exported.data.exportedAt.slice(0, 10)}.json`;
+    document.body.append(link);
+    link.click();
+    status.textContent = `Download requested: ${exported.data.stories.length} private stories and ${exported.data.videoLinks.length} video links. Check your Downloads folder. Video files are not included. Nothing was sent to BKOTA; keep personal information private.`;
+  } catch {
+    status.textContent = "The download could not be started. Your saved collection is unchanged. Keep this tab open and try another browser download setting.";
+  } finally {
+    link?.remove();
+    if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+  }
 });
 
 const venmoButton = document.querySelector("#venmoButton");
@@ -541,9 +638,15 @@ async function initializePlatform() {
   const note = document.querySelector("#connectionNote");
   const usePrivatePreview = () => {
     backendAvailable = false;
-    document.querySelector("#videoSubmit").textContent = "Add to private preview";
-    mode.textContent = "Private browser preview";
-    note.textContent = "Nothing leaves this browser while the moderated service is offline.";
+    impactAvailable = false;
+    approvedStories = [];
+    approvedVideos = [];
+    storySubmit.textContent = "Save privately on this device";
+    document.querySelector("#videoSubmit").textContent = "Save link privately";
+    mode.textContent = "Private collection · not a public post";
+    note.textContent = "The moderated service is offline. Stories and links stay in this browser when storage is available; they are not sent to Arthur. Download a copy before clearing browser data. Opening a video link contacts its platform.";
+    renderStories();
+    renderVideos();
   };
   if (config.moderatedServiceEnabled !== true) {
     usePrivatePreview();
@@ -552,16 +655,20 @@ async function initializePlatform() {
   try {
     const health = await api("/api/health");
     if (health.publicSubmissionsEnabled !== true) throw new Error("Public submissions are not enabled.");
+    const [stories, videos, stats] = await Promise.all([api("/api/stories"), api("/api/videos"), api("/api/stats")]);
+    const isPublicList = (items) => Array.isArray(items) && items.every((item) => item && typeof item === "object" && !Array.isArray(item));
+    if (!isPublicList(stories.items) || !isPublicList(videos.items)) throw new Error("Public feed data is unavailable.");
+    // Public content stays in memory. Never overwrite a visitor's private collection.
+    approvedStories = stories.items;
+    approvedVideos = videos.items;
     backendAvailable = true;
     impactAvailable = health.anonymousImpactEnabled === true;
     if (impactAvailable) measureVisiblePageOnce();
+    storySubmit.textContent = "Submit story for review";
     document.querySelector("#videoSubmit").textContent = "Submit for review";
     mode.textContent = "Moderated platform connected";
-    note.textContent = "Submissions enter Arthur's private review queue before publication.";
-    const [stories, videos, stats] = await Promise.all([api("/api/stories"), api("/api/videos"), api("/api/stats")]);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stories.items.map((item) => ({ ...item, anonymous: item.anonymous === true }))));
+    note.textContent = "New submissions enter Arthur's private review queue before publication. Existing private entries remain on this device and are not automatically uploaded. Approved community content is labeled separately.";
     renderStories();
-    localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify(videos.items));
     renderVideos();
     renderStats(stats);
   } catch {
@@ -581,7 +688,7 @@ function renderStats(stats) {
   });
 }
 
-const challengeText = "I joined Arthur Farmer's #CaughtBeingKind challenge: notice a good deed, ask permission, share it, and invite three friends. Be Kind One To Another — Ephesians 4:32. #BKOTA";
+const challengeText = "Join Arthur Farmer's #CaughtBeingKind challenge: do a good deed, ask permission before filming and sharing, and invite three friends. Helping never depends on being filmed. Be Kind One To Another — Ephesians 4:32. #BKOTA";
 function buildSharePayload() {
   const canonical = document.querySelector('link[rel="canonical"]')?.href || location.href;
   const shareUrl = new URL(canonical, location.href);

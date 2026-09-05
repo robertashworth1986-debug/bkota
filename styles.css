@@ -68,3 +68,80 @@ html.save-data .hero-visual,html.save-data .cloud-drift,html.save-data .globe-me
 /* Fail-closed administrator media review */
 .admin-guidance{max-width:58rem;margin:.25rem 0 1.25rem;color:#5b6878;font-size:.86rem;line-height:1.55}.media-review-card{border-radius:18px;background:#fff;box-shadow:0 16px 38px rgba(4,12,24,.1)}.media-review-card>.button{margin:.55rem 0 0}.publication-badge{display:inline-flex;align-items:center;width:max-content;max-width:100%;margin:.55rem 0;padding:.38rem .64rem;border:1px solid #c8b894;border-radius:999px;background:#fff8e8;color:#725321;font-size:.72rem;font-weight:800;letter-spacing:.04em}.publication-badge.is-published{border-color:#8db79b;background:#e9f7ee;color:#285d3b}.publication-badge.is-held{border-color:#d2a55d;background:#fff1d5;color:#744713}.publication-badge.is-removed{border-color:#b9bec5;background:#edf0f3;color:#4e5966}.publication-badge.needs-reconciliation{border-color:#c87842;background:#fff0e5;color:#7b3f1c}.media-review{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}.media-review h4{margin:0 0 .35rem;font-size:1rem}.media-review-guidance{margin:0 0 1rem;color:#5b6878;font-size:.8rem;line-height:1.5}.media-review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem}.media-review-field{display:grid;align-content:start;gap:.35rem;font-size:.76rem;font-weight:800}.media-review-field select{min-width:0;margin:0;padding:.68rem;border:1px solid #b8ad9d;border-radius:8px;background:#fff;font-size:.82rem;font-weight:500}.media-review-note{display:grid;gap:.35rem;margin-top:1rem;font-size:.76rem;font-weight:800}.media-review-note textarea{box-sizing:border-box;width:100%;min-height:5rem;padding:.75rem;border:1px solid #b8ad9d;border-radius:8px;background:#fff;font-size:.85rem;font-weight:500;resize:vertical}.media-review-note small{color:#667487;font-size:.7rem;font-weight:500;line-height:1.45}.review-gate-status{margin:1rem 0 0;padding:.7rem .8rem;border-left:4px solid #a4602c;background:#fff3e3;color:#6f421f;font-size:.78rem;line-height:1.45}.review-gate-status.is-ready{border-left-color:#38764d;background:#eaf7ee;color:#285b39}.media-review-actions{align-items:stretch;flex-wrap:wrap}.media-review-actions .button{min-height:42px}.media-review-status{margin:.7rem 0 0}.media-review :disabled{cursor:not-allowed}.media-review select:disabled,.media-review textarea:disabled{background:#edf0f3;color:#596473}.admin-body .empty-state{color:#5b6878}
 @media(max-width:680px){.media-review-grid{grid-template-columns:1fr}.media-review-actions{display:grid;grid-template-columns:1fr}.media-review-actions .button{width:100%}}
+
+/* Readable merchandise and a people-first community, September 2026. */
+.wear-section .section-heading{max-width:960px;margin-bottom:3rem}
+.wear-section .section-heading h2{font-size:clamp(2.7rem,6vw,5.8rem);letter-spacing:-.045em}
+.wear-section .section-heading>p:last-child{max-width:42rem;font-size:1.1rem;color:#4b5663}
+.merch-feature{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,.7fr);gap:clamp(2rem,5vw,5rem);align-items:center}
+.merch-feature-image{display:block;position:relative;overflow:hidden;border-radius:24px;background:#dcd1bd;box-shadow:0 28px 70px rgba(39,31,18,.15);text-decoration:none}
+.merch-feature-image picture,.merch-feature-image img{display:block;width:100%}
+.merch-feature-image img{height:auto;aspect-ratio:3/2;object-fit:cover;transition:transform .6s ease}
+.merch-feature-image:hover img{transform:scale(1.025)}
+.merch-image-label{display:block;background:#081426;color:#f7f1e5;padding:.9rem 1.25rem;font-size:.8rem;line-height:1.5}
+.merch-feature-copy .section-label,.wear-section>.section-heading .section-label{color:#775018}
+.merch-feature-copy h3{font:500 clamp(2.3rem,4vw,4rem)/1.04 var(--serif);letter-spacing:-.04em;margin:.6rem 0 1.3rem}
+.merch-feature-copy>p{color:#4b5663}
+.merch-benefits{list-style:none;padding:0;margin:1.5rem 0 2rem;border-top:1px solid #c5baa8}
+.merch-benefits li{padding:.7rem 0;border-bottom:1px solid #c5baa8;font-size:.96rem}
+.merch-benefits li::before{content:"+";display:inline-block;width:1.5rem;font-weight:700;color:#775018}
+.merch-feature-copy .button{gap:1.2rem;min-height:48px}
+.merch-feature-copy .merch-note{font-size:.85rem;line-height:1.6;margin-top:1.1rem}
+.original-concepts{margin-top:3.5rem;border-top:1px solid #baad98;padding-top:1.1rem}
+.original-concepts summary{cursor:pointer;font-size:1.12rem;font-weight:700;min-height:48px;padding:.6rem 0}
+.original-concepts summary span{font-size:.85rem;font-weight:400;margin-left:1rem;color:#53606c}
+.original-concepts>p{max-width:48rem;color:#53606c;margin-bottom:1.5rem}
+.original-concepts .product-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+.original-concepts .product-concept:nth-last-child(-n+2),.original-concepts .product-concept:last-child:nth-child(odd){transform:none;grid-column:auto;width:100%}
+.original-concepts .product-concept h3{font-size:1rem;margin:.9rem .4rem .55rem}
+.original-concepts .product-concept a{display:block;border-radius:12px}
+.original-concepts summary:focus-visible{outline:3px solid #775018;outline-offset:5px}
+.kindness-promise{display:grid;grid-template-columns:1fr 1.5fr;gap:.4rem 2.5rem;margin:-1.7rem 0 2.5rem;padding:1.5rem 1.8rem;border:1px solid #b9c6ce;border-left:4px solid #997027;border-radius:14px;background:#fffdf8}
+.kindness-promise strong{font:500 1.5rem/1.3 var(--serif);color:var(--navy)}
+.kindness-promise p{margin:0;color:#4b5663}
+.kindness-promise a{font-size:.88rem;grid-column:2;color:#654917;text-underline-offset:4px;min-height:44px;display:flex;align-items:center}
+.collection-tools{padding:1.3rem 1.5rem;border:1px solid #b9ad98;border-radius:16px;background:#fffdf8;display:flex;flex-wrap:wrap;align-items:center;gap:.8rem 1.5rem}
+.collection-tools>div{flex:1 1 20rem}
+.collection-tools strong{font-size:1.02rem}
+.collection-tools p{margin:.4rem 0 0;color:#53606c;font-size:.9rem}
+.collection-tools .form-status{flex-basis:100%}
+.button.outline{border:1px solid #8b744d;background:transparent;color:#172639}
+.checkbox{align-items:flex-start;font-size:.9rem;line-height:1.6}
+.checkbox input{flex:none;width:20px;height:20px;margin:3px 2px 0 0;accent-color:#806026}
+.section-label{color:#78521e}
+.hero .section-label,.hero .kicker,.challenge-section .section-label,.global-section .section-label{color:var(--gold2)}
+
+/* Art-directed hands and oil: dimensional light, with space for the message. */
+.hero{isolation:isolate}
+.hero-visual{--oil-x:72.9%;--oil-y:41.4%}
+.hero .living-oil{opacity:.38}
+.hero-shade{background:linear-gradient(90deg,rgba(4,12,24,.88),rgba(4,12,24,.5) 36%,rgba(4,12,24,.04) 62%,transparent 82%),linear-gradient(0deg,rgba(8,20,38,.68),transparent 38%)}
+.hero-content{width:min(49vw,680px)}
+.hero h1{font-size:clamp(3.4rem,7.2vw,7rem);text-wrap:balance}
+.hero-copy{color:#e2e6ec}
+.hero-art-link{display:inline-flex;align-items:center;gap:.6rem;min-height:44px;margin:1rem 0 0 .75rem;color:#f3d790;font-size:.78rem;text-underline-offset:.3em}
+.hero-art-link:hover{color:#fff5d8}
+.hero-art-link:focus-visible{outline:2px solid #f3d790;outline-offset:5px;border-radius:4px}
+.hero .motion-toggle{min-height:44px;color:#e2e6ec}
+.hero-signals span{color:#e2e6ec}
+@media(max-width:1100px){.hero-media img{object-position:72% center}.hero-content{margin-left:5vw;width:51vw}.hero-art-link{margin-left:0;display:flex;width:max-content}}
+@media(max-width:900px) and (orientation:portrait){
+  .hero{--hero-art-height:clamp(420px,96vw,620px);display:block;min-height:0;padding-top:var(--hero-art-height)}
+  .hero-visual{inset:0 0 auto;height:var(--hero-art-height);animation:none;--oil-x:55.1%;--oil-y:36.6%}
+  .hero-media img{object-position:50% 24%}
+  .hero-shade{bottom:auto;height:calc(var(--hero-art-height) + 2px);background:linear-gradient(180deg,rgba(4,12,24,.16),transparent 30%,rgba(8,20,38,.08) 58%,#081426 100%)}
+  .hero-content{width:min(90%,680px);margin:0 auto;padding:0 0 6rem}
+  .hero h1{font-size:clamp(3.15rem,9vw,5.25rem);margin-top:1rem}
+  .hero-copy{max-width:36rem}
+  .hero-signals{max-width:36rem}
+  .hero .scroll-cue{left:5%;right:auto;bottom:1.5rem}
+  .hero-art-link{display:inline-flex;margin-left:.75rem}
+}
+@media(max-width:380px){.hero-art-link{display:flex;margin-left:0}.hero .hero-actions .button{min-height:48px}}
+@media(prefers-reduced-motion:reduce){.hero .button:hover{transform:none}.hero-visual,.cloud-drift{animation:none!important}.hero .living-oil{opacity:.15}}
+.form-status{color:#315331}
+.video-section .section-heading>p:last-child{color:#4b5663}
+@media(min-width:901px) and (max-width:1180px){.site-header nav{gap:.85rem}.site-header nav a{font-size:.78rem}}
+@media(max-width:900px){.merch-feature{grid-template-columns:1fr}.merch-feature-copy{max-width:42rem}.original-concepts .product-row{grid-template-columns:repeat(2,minmax(0,1fr))}.kindness-promise{grid-template-columns:1fr}.kindness-promise a{grid-column:1}.original-concepts summary span{display:block;margin:.4rem 0 0}}
+@media(max-width:520px){.original-concepts .product-row{grid-template-columns:1fr}.merch-feature-image{border-radius:16px}.merch-image-label{font-size:.75rem}.merch-feature-copy .button,.collection-tools>.button{width:100%}.kindness-promise{padding:1.3rem}.wear-section{padding-inline:1.2rem}}
+@media(prefers-reduced-motion:reduce){.merch-feature-image img{transition:none}.merch-feature-image:hover img{transform:none}}

@@ -1,0 +1,23 @@
+name: BKOTA site quality
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Check scripts
+        run: |
+          for file in app.js community.js social-video.js merch.js privacy.js cards.js config.js sw.js register-sw.js; do node --check "$file"; done
+      - name: Check artwork, privacy, community and offline contracts
+        run: node --test tests/*.test.mjs
+      - name: Build the static release package
+        run: node tools/build-static.mjs
