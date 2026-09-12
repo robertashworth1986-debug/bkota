@@ -37,7 +37,7 @@ The domain manager must sign into GoDaddy directly, completing any authenticatio
    | TXT | GitHub-supplied challenge name | GitHub-supplied challenge value |
 
    Remove the Shopify apex A record `23.227.38.32` and `www` target `shops.myshopify.com` only as part of this approved replacement. Never invent the GitHub TXT challenge.
-6. Verify public DNS, HTTPS certificate coverage, redirects, the homepage, studio, downloads, offline behavior, and forms at the final URL. Record the deployed commit and receipts. If HTTPS is still provisioning, report it as pending.
+6. Run `npm run verify:domain`, then verify the studio, downloads, offline behavior, and forms in real desktop and phone browsers at the final URL. Record the deployed commit and receipts. The script fails closed unless the exact GitHub DNS, apex HTTPS page identity, canonical URL, and `www` redirect all pass. If HTTPS is still provisioning, report it as pending.
 
 The source now contains the reviewed custom-domain `CNAME` and root-domain metadata. The account-side GitHub setting, GoDaddy DNS mutation, Shopify cancellation, and public-submission activation remain separate actions with their own receipts. The quality workflow validates the site; it does not change DNS.
 
