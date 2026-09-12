@@ -11,7 +11,8 @@ Arthur Farmer's kindness movement, rooted in Ephesians 4:32. This repository con
 - Cinematic hands-and-golden-oil artwork with separate desktop/phone compositions, layered cloud lighting, AVIF/WebP delivery, and subtle motion with pause/reduced-motion support. [Artwork provenance](docs/HERO_ARTWORK.md).
 - [Scripture cards](kindness-cards.html) and the existing [downloadable card PDF](output/pdf/BKOTA-scripture-cards.pdf).
 - A browser-local collection for stories and video links, with an explicit JSON export. Approved public content and private browser entries are kept separate.
-- Consent/privacy information and fail-closed service integration. Payment and public-submission features remain disabled in `config.js`.
+- Consent/privacy information and fail-closed service integration. Payment and public-submission features remain disabled in `config.js` until Arthur's exact accounts are verified.
+- Root-domain preparation for `https://bkota.co/`; GoDaddy DNS and GitHub HTTPS still require live account-side verification.
 
 ## Run and verify
 
@@ -37,11 +38,13 @@ Sharp is a development-only media dependency; there are no runtime CDN dependenc
 
 ## Production boundaries
 
-The default public preview address is <https://robertashworth1986-debug.github.io/bkota/>. Code on a feature branch is not evidence that the public site has been updated.
+The fallback public preview address is <https://robertashworth1986-debug.github.io/bkota/>. Code on a feature branch is not evidence that the public site or domain has been updated.
 
-Arthur identified **bkota.co** as his domain. On September 5, 2026, it resolved to Shopify and displayed an unavailable-store page; domain connection is not complete. See [domain connection handoff](docs/DOMAIN_CONNECTION.md). No `CNAME` or DNS change is included in this update, and canonical URLs remain on the existing Pages origin until the destination is confirmed.
+Arthur selected **bkota.co** to replace the Shopify storefront on September 12, 2026. The repository includes its `CNAME` and canonical metadata, but domain connection is not complete until GoDaddy serves GitHub's records, GitHub verifies the domain, HTTPS is issued, and the live pages are checked. See the [domain connection handoff](docs/DOMAIN_CONNECTION.md).
 
-Connecting a domain does **not** provide public video uploads, durable shared storage, moderation, or checkout. Those need an approved service and moderator/operator accounts. Until then, browser entries are private/local and are not submissions. Clearing browser storage can erase them; JSON exports contain text and video links, not video files. Older imported browser records may have unknown submission history.
+Connecting a domain does **not** provide public video uploads, durable shared storage, moderation, or checkout. Those need an approved service and moderator/operator accounts. Until then, browser entries are private/local and are not submissions. Clearing browser storage can erase them; JSON exports contain text and video links, not video files. Older imported browser records may have unknown submission history. The initial static launch therefore costs $0 per month for hosting and does not need a VPS; the GoDaddy domain renewal remains separate.
+
+The support panel describes an optional one-time business-profile payment. It is not a recurring subscription, charitable donation, or tax-deductible contribution. Keep the button disabled until Arthur creates and controls the exact BKOTA Venmo business profile, exports its official share link/QR from his app, and approves a separate-device test. Never place Venmo credentials, bank details, identity documents, or personal financial data in this repository.
 
 The shirt viewer is a spatial vector illustration, not a physically accurate 3D garment simulation. The new merchandise raster master is **1536 × 1024**. The cinematic hero masters are **1672 × 941** (landscape) and **1122 × 1402** (portrait), not native 4K. SVG artwork scales independently of raster resolution, but fonts, inks, underbase, placement, and garment fit must be checked with a printer before manufacture. No stock, sales, fulfillment, or physical product quality is represented as verified.
 

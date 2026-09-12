@@ -134,7 +134,7 @@ const appSource = await readFile(new URL("../app.js", import.meta.url), "utf8");
 const collectText = (node) => [node.textContent, ...node.children.map((child) => typeof child === "string" ? child : collectText(child))].join(" ");
 
 async function page({ local = storage(), connected = false, responses = {}, storageGetterFails = false } = {}) {
-  const ids = ["feed", "bkotaForm", "formStatus", "messageText", "storyConsent", "continent", "name", "city", "anon", "storyWebsite", "seedDemo", "clearFeed", "videoWall", "videoStatus", "videoForm", "videoUrl", "videoCaption", "videoConsent", "videoWebsite", "videoSubmit", "seedVideos", "clearVideos", "downloadCollection", "collectionStatus", "venmoButton", "connectionMode", "connectionNote", "globalDeedCount", "continentCount", "shareMovement", "shareStatus", "copyChallenge"];
+  const ids = ["feed", "bkotaForm", "formStatus", "messageText", "storyConsent", "continent", "name", "city", "anon", "storyWebsite", "seedDemo", "clearFeed", "videoWall", "videoStatus", "videoForm", "videoUrl", "videoCaption", "videoConsent", "videoWebsite", "videoSubmit", "seedVideos", "clearVideos", "downloadCollection", "collectionStatus", "venmoButton", "connectionMode", "connectionNote", "globalDeedCount", "approvedVideoCount", "continentCount", "shareMovement", "shareStatus", "copyChallenge"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Node()]));
   nodes.bkotaForm.submit = new Node("button");
   nodes.messageText.value = "I helped my neighbor carry groceries.";
@@ -239,7 +239,7 @@ test("connected approved feeds never overwrite or relabel the private collection
     "/api/health": { publicSubmissionsEnabled: true },
     "/api/stories": { items: [{ message: "Approved shared story" }] },
     "/api/videos": { items: [] },
-    "/api/stats": { approvedDeeds: 8, continentsReached: 2 }
+    "/api/stats": { approvedDeeds: 8, approvedVideos: 3, continentsReached: 2 }
   } });
   assert.equal(local.getItem(STORY_KEY), original);
   assert.equal(local.getItem(VIDEO_KEY), null);
@@ -249,7 +249,20 @@ test("connected approved feeds never overwrite or relabel the private collection
   assert.match(collectText(view.nodes.feed), /Older browser copy · submission history unknown/);
   assert.match(collectText(view.nodes.feed), /Private memory/);
   assert.equal(view.nodes.globalDeedCount.textContent, "8");
+  assert.equal(view.nodes.approvedVideoCount.textContent, "3");
   assert.equal(exportCollection(() => local, "2026-09-05T12:00:00Z").data.stories.length, 2);
+});
+
+test("public counters reject coercible non-number values", async () => {
+  const view = await page({ connected: true, responses: {
+    "/api/health": { publicSubmissionsEnabled: true },
+    "/api/stories": { items: [] },
+    "/api/videos": { items: [] },
+    "/api/stats": { approvedDeeds: "8", approvedVideos: true, continentsReached: [], byContinent: { Africa: "2" } }
+  } });
+  assert.equal(view.nodes.globalDeedCount.textContent, "0");
+  assert.equal(view.nodes.approvedVideoCount.textContent, "0");
+  assert.equal(view.nodes.continentCount.textContent, "0");
 });
 
 test("confirmed online submission enters review without being added to the local or public feed", async () => {

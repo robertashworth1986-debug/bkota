@@ -88,6 +88,18 @@ test("public configuration keeps submissions, provider APIs, and payments disabl
   assert.equal(config.venmoHandle, "");
 });
 
+test("root-domain launch metadata consistently targets bkota.co while support stays fail-closed", () => {
+  assert.equal(read("CNAME").trim(), "bkota.co");
+  const html = read("index.html");
+  assert.match(html, /<link rel="canonical" href="https:\/\/bkota\.co\/">/);
+  assert.match(html, /<meta property="og:url" content="https:\/\/bkota\.co\/">/);
+  assert.match(html, /one-time payment/i);
+  assert.match(html, /not a charitable or tax-deductible contribution/i);
+  assert.match(html, /<button[^>]+id="venmoButton"[^>]+disabled/i);
+  assert.match(read("robots.txt"), /Sitemap: https:\/\/bkota\.co\/sitemap\.xml/);
+  assert.match(read("sitemap.xml"), /<loc>https:\/\/bkota\.co\//);
+});
+
 test("social-video parser canonicalizes public provider links and removes tracking parameters", () => {
   const sandbox = { URL };
   vm.runInNewContext(read("social-video.js"), sandbox);

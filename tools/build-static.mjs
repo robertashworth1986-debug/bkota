@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const defaultRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const publicFiles = Object.freeze([
-  '.nojekyll', 'index.html', 'styles.css', 'app.js', 'community.js', 'social-video.js',
+  '.nojekyll', 'CNAME', 'index.html', 'styles.css', 'app.js', 'community.js', 'social-video.js',
   'config.js', 'merch.html', 'merch.css', 'merch.js', 'kindness-cards.html', 'cards.js',
   'privacy.html', 'privacy.js', 'manifest.webmanifest', 'robots.txt', 'sitemap.xml',
   'sw.js', 'register-sw.js', 'output/pdf/BKOTA-scripture-cards.pdf'

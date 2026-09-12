@@ -1,5 +1,5 @@
 "use strict";
-const CACHE = "bkota-shell-v12";
+const CACHE = "bkota-shell-v13";
 const SHELL = [
   "./", "index.html", "kindness-cards.html", "cards.js", "styles.css", "app.js",
   "community.js", "social-video.js", "merch.html", "merch.css", "merch.js",

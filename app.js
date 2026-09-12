@@ -69,12 +69,19 @@ function setupMotionControl() {
   try { userPaused = localStorage.getItem(MOTION_STORAGE_KEY) === "true"; } catch {}
 
   function applyPreference() {
-    const paused = query.matches || userPaused;
+    const systemPaused = query.matches || saveDataRequested;
+    const paused = systemPaused || userPaused;
     document.documentElement.classList.toggle("motion-paused", paused);
-    button.disabled = query.matches;
+    button.disabled = systemPaused;
     button.setAttribute("aria-pressed", String(paused));
-    button.textContent = query.matches ? "Background motion reduced by device setting" : userPaused ? "Resume background motion" : "Pause background motion";
-    dispatchEvent(new CustomEvent("bkota-motion-change", { detail: { paused } }));
+    button.textContent = query.matches
+      ? "Background motion reduced by device setting"
+      : saveDataRequested
+        ? "Background motion reduced to save data"
+        : userPaused
+          ? "Resume background motion"
+          : "Pause background motion";
+    dispatchEvent(new CustomEvent("bkota-motion-change", { detail: { paused, systemPaused } }));
   }
 
   button.addEventListener("click", () => {
@@ -101,14 +108,16 @@ function startLivingOil() {
   let scale = 1;
   let frame = 0;
   let lastPaint = 0;
+  let frozenTime = 0;
   let heroVisible = true;
   let pageVisible = !document.hidden;
   const frameInterval = 1000 / 30;
-  const droplets = Array.from({ length: 14 }, (_, index) => ({
-    phase: (index * 0.173) % 1,
-    speed: 0.000018 + (index % 4) * 0.000004,
-    radius: 1 + (index % 4) * 0.34,
-    sway: 1 + (index % 5) * 0.52
+  const droplets = Array.from({ length: 18 }, (_, index) => ({
+    phase: (index * 0.137 + 0.04) % 1,
+    speed: 0.000013 + (index % 5) * 0.000003,
+    radius: 0.9 + (index % 4) * 0.38,
+    sway: 0.7 + (index % 6) * 0.42,
+    lane: ((index % 5) - 2) * 1.45
   }));
 
   function syncOilAnchor() {
@@ -137,8 +146,12 @@ function startLivingOil() {
     };
     const screenX = (box.width - renderedWidth) * positionX + renderedWidth * anchor.x;
     const screenY = (box.height - renderedHeight) * positionY + renderedHeight * anchor.y;
-    canvas.style.setProperty("--oil-screen-x", `${Math.max(0, Math.min(box.width, screenX)).toFixed(2)}px`);
-    canvas.style.setProperty("--oil-screen-y", `${Math.max(0, Math.min(box.height, screenY)).toFixed(2)}px`);
+    const xValue = `${Math.max(0, Math.min(box.width, screenX)).toFixed(2)}px`;
+    const yValue = `${Math.max(0, Math.min(box.height, screenY)).toFixed(2)}px`;
+    heroVisual.style.setProperty("--oil-screen-x", xValue);
+    heroVisual.style.setProperty("--oil-screen-y", yValue);
+    canvas.style.setProperty("--oil-screen-x", xValue);
+    canvas.style.setProperty("--oil-screen-y", yValue);
   }
 
   function resize() {
@@ -151,76 +164,127 @@ function startLivingOil() {
     context.setTransform(scale, 0, 0, scale, 0, 0);
   }
 
+  function streamPoint(progress, now, phase = 0, offset = 0, amplitude = 1) {
+    const sourceX = width * 0.5;
+    const sourceY = Math.min(24, height * 0.08);
+    const streamLength = Math.max(1, height - sourceY);
+    const broadDrift = Math.sin(progress * 8.4 + now * 0.00043 + phase) * (0.55 + progress * 2.15);
+    const surfaceTension = Math.sin(progress * 22.5 - now * 0.00029 + phase * 1.8) * (0.14 + progress * 0.5);
+    return {
+      x: sourceX + offset + (broadDrift + surfaceTension) * amplitude,
+      y: sourceY + progress * streamLength
+    };
+  }
+
+  function traceStream(now, phase = 0, offset = 0, amplitude = 1, steps = 44) {
+    context.beginPath();
+    for (let step = 0; step <= steps; step += 1) {
+      const point = streamPoint(step / steps, now, phase, offset, amplitude);
+      if (step === 0) context.moveTo(point.x, point.y);
+      else context.lineTo(point.x, point.y);
+    }
+  }
+
+  function fillOilBody(now, fillStyle) {
+    const steps = 44;
+    context.beginPath();
+    for (let step = 0; step <= steps; step += 1) {
+      const progress = step / steps;
+      const point = streamPoint(progress, now, 0.15, 0, 0.86);
+      const halfWidth = Math.max(2.7, width * 0.057 * (1 - progress * 0.5) + Math.sin(progress * 18 + now * 0.0005) * 0.35);
+      if (step === 0) context.moveTo(point.x - halfWidth, point.y);
+      else context.lineTo(point.x - halfWidth, point.y);
+    }
+    for (let step = steps; step >= 0; step -= 1) {
+      const progress = step / steps;
+      const point = streamPoint(progress, now, 0.15, 0, 0.86);
+      const halfWidth = Math.max(2.7, width * 0.057 * (1 - progress * 0.5) + Math.sin(progress * 18 + now * 0.0005) * 0.35);
+      context.lineTo(point.x + halfWidth, point.y);
+    }
+    context.closePath();
+    context.fillStyle = fillStyle;
+    context.fill();
+  }
+
   function paint(now = 0) {
     context.clearRect(0, 0, width, height);
     const sourceX = width * 0.5;
     const sourceY = Math.min(24, height * 0.08);
     const streamLength = Math.max(1, height - sourceY);
-    const shimmer = 0.5 + Math.sin(now * 0.0012) * 0.14;
-    const stream = context.createLinearGradient(sourceX, sourceY, sourceX + 4, sourceY + streamLength);
-    stream.addColorStop(0, "rgba(255,250,205,0)");
-    stream.addColorStop(0.06, `rgba(255,249,184,${0.5 + shimmer * 0.18})`);
-    stream.addColorStop(0.5, "rgba(255,220,102,0.48)");
-    stream.addColorStop(0.86, "rgba(255,205,73,0.2)");
-    stream.addColorStop(1, "rgba(255,196,47,0)");
-    context.save();
-    context.globalCompositeOperation = "screen";
-    const body = context.createLinearGradient(sourceX, sourceY, sourceX + 5, sourceY + streamLength);
+    const shimmer = 0.5 + Math.sin(now * 0.00105) * 0.14;
+    const staticMode = reduceMotion.matches || saveData || document.documentElement.classList.contains("motion-paused");
+    const body = context.createLinearGradient(sourceX, sourceY, sourceX + 4, sourceY + streamLength);
     body.addColorStop(0, "rgba(255,252,218,0)");
-    body.addColorStop(0.08, `rgba(255,239,155,${0.1 + shimmer * 0.05})`);
-    body.addColorStop(0.52, "rgba(255,197,44,0.13)");
-    body.addColorStop(0.88, "rgba(231,145,18,0.055)");
-    body.addColorStop(1, "rgba(231,145,18,0)");
+    body.addColorStop(0.045, `rgba(255,233,135,${0.13 + shimmer * 0.06})`);
+    body.addColorStop(0.42, "rgba(224,145,26,0.14)");
+    body.addColorStop(0.82, "rgba(173,91,7,0.08)");
+    body.addColorStop(1, "rgba(137,65,2,0)");
     context.save();
-    context.filter = "blur(4px)";
-    context.shadowColor = "rgba(255,190,34,0.24)";
-    context.shadowBlur = 12;
-    context.strokeStyle = body;
-    context.lineWidth = Math.max(11, width * 0.095);
-    context.lineCap = "round";
-    context.beginPath();
-    for (let step = 0; step <= 36; step += 1) {
-      const progress = step / 36;
-      const x = sourceX + Math.sin(progress * 8.5 + now * 0.00062) * (0.8 + progress * 2.4);
-      const y = sourceY + progress * streamLength;
-      if (step === 0) context.moveTo(x, y); else context.lineTo(x, y);
-    }
-    context.stroke();
+    context.globalCompositeOperation = "source-over";
+    context.save();
+    context.filter = "blur(2.4px)";
+    context.shadowColor = "rgba(201,117,9,0.24)";
+    context.shadowBlur = 9;
+    fillOilBody(now, body);
     context.restore();
+
+    context.globalCompositeOperation = "screen";
     const sourceGlow = context.createRadialGradient(sourceX, sourceY + 4, 0, sourceX, sourceY + 4, 28);
-    sourceGlow.addColorStop(0, `rgba(255,252,220,${0.22 + shimmer * 0.14})`);
-    sourceGlow.addColorStop(0.38, "rgba(255,206,70,0.12)");
+    sourceGlow.addColorStop(0, `rgba(255,255,225,${0.2 + shimmer * 0.16})`);
+    sourceGlow.addColorStop(0.38, "rgba(255,206,70,0.14)");
     sourceGlow.addColorStop(1, "rgba(255,176,20,0)");
     context.fillStyle = sourceGlow;
     context.beginPath();
     context.ellipse(sourceX, sourceY + 4, 28, 10, 0, 0, Math.PI * 2);
     context.fill();
+
     context.lineCap = "round";
-    [{ offset: -4.5, width: 1.05 }, { offset: 0, width: 2.25 }, { offset: 4, width: 0.9 }].forEach((lane, laneIndex) => {
-      context.beginPath();
+    context.strokeStyle = `rgba(255,247,188,${0.16 + shimmer * 0.16})`;
+    context.lineWidth = 1;
+    context.beginPath();
+    context.ellipse(sourceX, sourceY + 4, 16 + shimmer * 3, 4.2 + shimmer, -0.08, Math.PI * 0.08, Math.PI * 0.92);
+    context.stroke();
+
+    const stream = context.createLinearGradient(sourceX, sourceY, sourceX + 5, sourceY + streamLength);
+    stream.addColorStop(0, "rgba(255,251,214,0)");
+    stream.addColorStop(0.055, `rgba(255,252,203,${0.54 + shimmer * 0.18})`);
+    stream.addColorStop(0.48, "rgba(255,222,107,0.5)");
+    stream.addColorStop(0.84, "rgba(255,194,46,0.2)");
+    stream.addColorStop(1, "rgba(255,178,20,0)");
+    context.lineCap = "round";
+    [
+      { offset: -4.7, width: 0.85, phase: 0.2, speed: 0.014 },
+      { offset: -1.5, width: 2.2, phase: 1.3, speed: 0.018 },
+      { offset: 1.4, width: 1.35, phase: 2.2, speed: 0.015 },
+      { offset: 4.4, width: 0.72, phase: 3.1, speed: 0.012 }
+    ].forEach((lane, laneIndex) => {
+      traceStream(now, lane.phase, lane.offset, 0.72 + laneIndex * 0.08);
       context.strokeStyle = stream;
       context.lineWidth = lane.width;
-      for (let step = 0; step <= 28; step += 1) {
-        const progress = step / 28;
-        const x = sourceX + lane.offset + Math.sin(progress * 9 + now * 0.00075 + laneIndex) * (0.45 + progress * 1.4);
-        const y = sourceY + progress * streamLength;
-        if (step === 0) context.moveTo(x, y); else context.lineTo(x, y);
-      }
+      context.setLineDash([10 + laneIndex * 3, 27 - laneIndex * 2]);
+      context.lineDashOffset = -(now * lane.speed + laneIndex * 17);
       context.stroke();
     });
+    context.setLineDash([]);
+
+    traceStream(now, 0.7, 0.2, 0.55);
+    context.strokeStyle = "rgba(255,248,202,0.24)";
+    context.lineWidth = 0.65;
+    context.stroke();
+
     droplets.forEach((drop, index) => {
-      const staticMode = reduceMotion.matches || saveData || document.documentElement.classList.contains("motion-paused");
       const progress = staticMode ? drop.phase : (drop.phase + now * drop.speed) % 1;
-      const x = sourceX + Math.sin(progress * 11 + index * 1.7) * drop.sway;
-      const y = sourceY + progress * streamLength;
-      const alpha = Math.sin(progress * Math.PI) * 0.48;
+      const point = streamPoint(progress, now, index * 0.73, drop.lane, 0.46);
+      const x = point.x + Math.sin(progress * 13 + index) * drop.sway * 0.35;
+      const y = point.y;
+      const alpha = Math.pow(Math.sin(progress * Math.PI), 1.35) * 0.5;
       const glow = context.createRadialGradient(x, y - 0.5, 0, x, y, drop.radius * 3.2);
       glow.addColorStop(0, `rgba(255,255,225,${alpha})`);
-      glow.addColorStop(0.4, `rgba(255,205,62,${alpha * 0.58})`);
+      glow.addColorStop(0.4, `rgba(255,205,62,${alpha * 0.62})`);
       glow.addColorStop(1, "rgba(196,113,10,0)");
       context.fillStyle = glow;
       context.beginPath();
-      context.ellipse(x, y, drop.radius, drop.radius * 2.1, 0, 0, Math.PI * 2);
+      context.ellipse(x, y, drop.radius, drop.radius * (2.15 + (index % 3) * 0.28), 0, 0, Math.PI * 2);
       context.fill();
     });
     context.restore();
@@ -236,14 +300,21 @@ function startLivingOil() {
 
   function tick(now) {
     frame = 0;
-    if (now - lastPaint >= frameInterval) { paint(now); lastPaint = now; }
+    if (now - lastPaint >= frameInterval) {
+      frozenTime = 0;
+      paint(now);
+      lastPaint = now;
+    }
     schedule();
   }
 
   function refresh() {
     cancelAnimationFrame(frame);
     frame = 0;
-    paint(performance.now());
+    const now = performance.now();
+    if (shouldAnimate()) frozenTime = 0;
+    else if (!frozenTime) frozenTime = now;
+    paint(frozenTime || now);
     schedule();
   }
 
@@ -679,10 +750,13 @@ async function initializePlatform() {
 initializePlatform();
 
 function renderStats(stats) {
-  document.querySelector("#globalDeedCount").textContent = Number(stats.approvedDeeds || 0).toLocaleString();
-  document.querySelector("#continentCount").textContent = String(stats.continentsReached || 0);
+  const countText = (value) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString() : "0";
+  document.querySelector("#globalDeedCount").textContent = countText(stats?.approvedDeeds);
+  document.querySelector("#approvedVideoCount").textContent = countText(stats?.approvedVideos);
+  document.querySelector("#continentCount").textContent = countText(stats?.continentsReached);
   document.querySelectorAll("[data-continent]").forEach((item) => {
-    const count = Number(stats.byContinent?.[item.dataset.continent] || 0);
+    const candidate = stats?.byContinent?.[item.dataset.continent];
+    const count = typeof candidate === "number" && Number.isSafeInteger(candidate) && candidate >= 0 ? candidate : 0;
     item.classList.toggle("reached", count > 0);
     item.title = `${count.toLocaleString()} approved kindness ${count === 1 ? "story" : "stories"}`;
   });

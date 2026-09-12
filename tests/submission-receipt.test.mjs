@@ -29,7 +29,7 @@ class Node {
 }
 
 async function page({ postResponse, connected = true } = {}) {
-  const ids = ["feed", "bkotaForm", "formStatus", "messageText", "storyConsent", "continent", "name", "city", "anon", "storyWebsite", "seedDemo", "clearFeed", "videoWall", "videoStatus", "videoForm", "videoUrl", "videoCaption", "videoConsent", "videoWebsite", "videoSubmit", "seedVideos", "clearVideos", "downloadCollection", "collectionStatus", "venmoButton", "connectionMode", "connectionNote", "globalDeedCount", "continentCount", "shareMovement", "shareStatus", "copyChallenge"];
+  const ids = ["feed", "bkotaForm", "formStatus", "messageText", "storyConsent", "continent", "name", "city", "anon", "storyWebsite", "seedDemo", "clearFeed", "videoWall", "videoStatus", "videoForm", "videoUrl", "videoCaption", "videoConsent", "videoWebsite", "videoSubmit", "seedVideos", "clearVideos", "downloadCollection", "collectionStatus", "venmoButton", "connectionMode", "connectionNote", "globalDeedCount", "approvedVideoCount", "continentCount", "shareMovement", "shareStatus", "copyChallenge"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Node()]));
   nodes.bkotaForm.submit = new Node();
   nodes.messageText.value = "I helped a neighbor.";

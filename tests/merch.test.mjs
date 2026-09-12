@@ -40,7 +40,7 @@ test('unknown or injected settings fail to fixed safe defaults', () => {
 test('static no-JavaScript SVG downloads match the canonical design generator', async () => {
   for (const side of ['front', 'back']) {
     const staticSvg = await readFile(new URL(`../assets/merch/bkota-${side}-midnight.svg`, import.meta.url), 'utf8');
-    assert.equal(staticSvg.trim(), createArtwork({ side }).trim());
+    assert.equal(staticSvg.replace(/\r\n/g, '\n').trim(), createArtwork({ side }).replace(/\r\n/g, '\n').trim());
   }
 });
 
