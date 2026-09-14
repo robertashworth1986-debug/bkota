@@ -3,7 +3,36 @@ import { access, link, lstat, mkdir, mkdtemp, readFile, rename, rm, symlink, wri
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
-import { buildStatic, publicFiles } from '../tools/build-static.mjs';
+import { buildStatic, publicFiles, retainedPublicAssets } from '../tools/build-static.mjs';
+
+function minimalWebp() {
+  const buffer = Buffer.alloc(22);
+  buffer.write('RIFF', 0, 'ascii');
+  buffer.writeUInt32LE(14, 4);
+  buffer.write('WEBP', 8, 'ascii');
+  buffer.write('VP8 ', 12, 'ascii');
+  buffer.writeUInt32LE(1, 16);
+  return buffer;
+}
+
+function pngWithTextMetadata() {
+  const chunk = (type, data = Buffer.alloc(0)) => {
+    const output = Buffer.alloc(12 + data.length);
+    output.writeUInt32BE(data.length, 0);
+    output.write(type, 4, 'ascii');
+    data.copy(output, 8);
+    // CRC validity is irrelevant here: the release audit rejects the metadata
+    // chunk before any image decoder is asked to consume the fixture.
+    return output;
+  };
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk('IHDR', Buffer.alloc(13)),
+    chunk('tEXt', Buffer.from('Author\0Private Person')),
+    chunk('IDAT', Buffer.from([0])),
+    chunk('IEND')
+  ]);
+}
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'bkota-build-test-'));
@@ -17,18 +46,25 @@ async function fixture(t) {
     await writeFile(join(root, path), text);
   };
   for (const path of publicFiles) await put(path, path.endsWith('.webmanifest') ? '{}' : '');
+  await put('CNAME', 'bkota.co\n');
   await put('assets/nested/mark.svg', '<svg xmlns="http://www.w3.org/2000/svg"></svg>');
-  await put('assets/nested/photo one.webp', 'image fixture');
   await put('output/pdf/BKOTA-scripture-cards.pdf', '%PDF-1.4\nPUBLIC SCRIPTURE CARD FIXTURE');
   await put('output/private-not-for-publication.txt', 'DO NOT COPY');
   await put('index.html', '<html><head><link rel="stylesheet" href="styles.css"></head><body><a href="kindness-cards.html">Cards</a><img src="assets/nested/mark.svg"></body></html>');
   await put('kindness-cards.html', '<a href="output/pdf/BKOTA-scripture-cards.pdf">Scripture-card PDF</a>');
-  return { root, put, output: join(root, 'dist'), read: (path) => readFile(join(root, path), 'utf8') };
+  return {
+    root, put, output: join(root, 'dist'), read: (path) => readFile(join(root, path), 'utf8'),
+    build: (options = {}) => buildStatic({
+      rootDir: root,
+      retainedAssets: { 'assets/nested/mark.svg': 'shared fixture mark retained intentionally' },
+      ...options
+    })
+  };
 }
 
 test('clean static build includes the exact public PDF and validates packaged links', async (t) => {
   const f = await fixture(t);
-  const result = await buildStatic({ rootDir: f.root });
+  const result = await f.build();
   assert.equal(result.output, f.output);
   assert.ok(result.checkedLinks >= 4);
   assert.equal(await f.read('dist/output/pdf/BKOTA-scripture-cards.pdf'), await f.read('output/pdf/BKOTA-scripture-cards.pdf'));
@@ -36,15 +72,75 @@ test('clean static build includes the exact public PDF and validates packaged li
   assert.equal(await f.read('dist/index.html'), await f.read('index.html'));
   // Rebuilding expected files is supported and never requires deleting the output directory.
   await f.put('index.html', '<a href="kindness-cards.html">Updated page</a>');
-  await buildStatic({ rootDir: f.root });
+  await f.build();
   assert.match(await f.read('dist/index.html'), /Updated page/);
+});
+
+test('production retained-asset manifest names every premium merchandise final and no raw source', () => {
+  const paths = Object.keys(retainedPublicAssets);
+  for (let index = 1; index <= 5; index += 1) {
+    const number = String(index).padStart(2, '0');
+    assert.ok(paths.some((path) => path.startsWith(`assets/merch/bkota-concept-${number}-`) && path.endsWith('-v1.png')),
+      `Missing retained merchandise final ${number}`);
+  }
+  assert.ok(paths.every((path) => !/(?:^|\/|[-_.])sources?(?:\/|[-_.]|$)/i.test(path)));
+  assert.ok(Object.values(retainedPublicAssets).every((reason) => typeof reason === 'string' && reason.length >= 8));
+});
+
+test('the public CNAME is packaged only when it targets the verified apex domain exactly', async (t) => {
+  const valid = await fixture(t);
+  await valid.build();
+  assert.equal(await valid.read('dist/CNAME'), 'bkota.co\n');
+
+  for (const value of ['www.bkota.co\n', 'bkota.co\nextra.example\n', '\ufeffbkota.co\n', 'bkota.co \n']) {
+    const invalid = await fixture(t);
+    await invalid.put('CNAME', value);
+    await assert.rejects(invalid.build(), /CNAME must contain exactly bkota\.co/);
+    await assert.rejects(access(invalid.output));
+  }
+});
+
+test('private, hidden, unknown, unreferenced, and raw-source assets fail before release output', async (t) => {
+  const cases = [
+    ['assets/private-note.txt', 'PRIVATE', /Unsupported public asset extension/],
+    ['assets/.hidden.png', 'PNG', /Hidden asset paths/],
+    ['assets/orphan-plate.png', 'PNG', /Unapproved or unreferenced public asset/],
+    ['assets/unknown.bin', 'BINARY', /Unsupported public asset extension/],
+    ['assets/bkota-social-card-source-v2.png', 'PNG', /Raw source assets/]
+  ];
+  for (const [path, contents, message] of cases) {
+    const f = await fixture(t);
+    await f.put(path, contents);
+    await assert.rejects(f.build(), message);
+    await assert.rejects(access(f.output));
+  }
+
+  const f = await fixture(t);
+  await f.put('assets/merch/sources/private-plate.png', 'PNG');
+  await f.put('index.html', '<img src="assets/merch/sources/private-plate.png">');
+  await assert.rejects(f.build(), /Raw source assets/);
+  await assert.rejects(access(f.output));
+});
+
+test('referenced metadata-bearing raster and active SVG assets are rejected', async (t) => {
+  const metadata = await fixture(t);
+  await metadata.put('assets/nested/metadata.png', pngWithTextMetadata());
+  await metadata.put('index.html', '<img src="assets/nested/metadata.png">');
+  await assert.rejects(metadata.build(), /Unapproved PNG metadata or chunk tEXt/);
+  await assert.rejects(access(metadata.output));
+
+  const active = await fixture(t);
+  await active.put('assets/nested/active.svg', '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+  await active.put('index.html', '<img src="assets/nested/active.svg">');
+  await assert.rejects(active.build(), /Active or external SVG content/);
+  await assert.rejects(access(active.output));
 });
 
 test('a stale nested asset aborts before any existing output is overwritten', async (t) => {
   const f = await fixture(t);
   await f.put('dist/index.html', 'PREVIOUS BUILD');
   await f.put('dist/assets/nested/stale-private.txt', 'PRESERVE FOR REVIEW');
-  await assert.rejects(buildStatic({ rootDir: f.root }), /Unexpected existing build entry: assets\/nested\/stale-private.txt/);
+  await assert.rejects(f.build(), /Unexpected existing build entry: assets\/nested\/stale-private.txt/);
   assert.equal(await f.read('dist/index.html'), 'PREVIOUS BUILD');
   assert.equal(await f.read('dist/assets/nested/stale-private.txt'), 'PRESERVE FOR REVIEW');
 });
@@ -55,7 +151,7 @@ test('unexpected nested output files and directories are not silently included',
     await f.put('dist/index.html', 'PREVIOUS BUILD');
     if (path.endsWith('private-folder')) await mkdir(join(f.root, path), { recursive: true });
     else await f.put(path, 'DO NOT PUBLISH');
-    await assert.rejects(buildStatic({ rootDir: f.root }), /Unexpected existing build entry/);
+    await assert.rejects(f.build(), /Unexpected existing build entry/);
     assert.equal(await f.read('dist/index.html'), 'PREVIOUS BUILD');
     assert.ok(await lstat(join(f.root, path)));
   }
@@ -67,7 +163,7 @@ test('file-versus-directory output conflicts fail before copying', async (t) => 
     if (conflict === 'directory-at-file') await mkdir(join(f.output, 'index.html'), { recursive: true });
     if (conflict === 'file-at-directory') await f.put('dist/assets', 'NOT A DIRECTORY');
     if (conflict === 'file-at-output') await f.put('dist', 'NOT A DIRECTORY');
-    await assert.rejects(buildStatic({ rootDir: f.root }), /type conflict|output must be a directory/);
+    await assert.rejects(f.build(), /type conflict|output must be a directory/);
   }
 });
 
@@ -77,7 +173,7 @@ test('source symlinks are rejected inside assets', async (t) => {
   await f.put('private-source/secret.txt', 'PRIVATE');
   try { await symlink(join(f.root, 'private-source'), join(f.root, 'assets/linked'), 'junction'); }
   catch (error) { if (['EPERM', 'EACCES', 'ENOTSUP'].includes(error.code)) return t.skip('This environment cannot create test symlinks.'); throw error; }
-  await assert.rejects(buildStatic({ rootDir: f.root }), /Symbolic links are not allowed.*assets\/linked/);
+  await assert.rejects(f.build(), /Symbolic links are not allowed.*assets\/linked/);
   await assert.rejects(access(f.output));
   assert.equal(await f.read('private-source/secret.txt'), 'PRIVATE');
 });
@@ -87,7 +183,7 @@ test('the exact allowlisted PDF cannot follow a symlinked source output director
   await rename(join(f.root, 'output'), join(f.root, 'source-output'));
   try { await symlink(join(f.root, 'source-output'), join(f.root, 'output'), 'junction'); }
   catch (error) { if (['EPERM', 'EACCES', 'ENOTSUP'].includes(error.code)) return t.skip('This environment cannot create test symlinks.'); throw error; }
-  await assert.rejects(buildStatic({ rootDir: f.root }), /Symbolic links are not allowed.*output/);
+  await assert.rejects(f.build(), /Symbolic links are not allowed.*output/);
   await assert.rejects(access(f.output));
 });
 
@@ -98,7 +194,7 @@ test('output symlinks and directory junctions never redirect copying', async (t)
     await mkdir(dirname(join(f.root, destination)), { recursive: true });
     try { await symlink(join(f.root, 'outside-target'), join(f.root, destination), 'junction'); }
     catch (error) { if (['EPERM', 'EACCES', 'ENOTSUP'].includes(error.code)) return t.skip('This environment cannot create test symlinks.'); throw error; }
-    await assert.rejects(buildStatic({ rootDir: f.root }), /Symbolic links are not allowed/);
+    await assert.rejects(f.build(), /Symbolic links are not allowed/);
     assert.equal(await f.read('outside-target/keep.txt'), 'UNCHANGED');
     await assert.rejects(access(join(f.root, 'outside-target/index.html')));
   }
@@ -110,45 +206,46 @@ test('hard-linked output files are not overwritten through another name', async 
   await mkdir(f.output);
   try { await link(join(f.root, 'outside-target/keep.txt'), join(f.output, 'index.html')); }
   catch (error) { if (['EPERM', 'EACCES', 'ENOTSUP'].includes(error.code)) return t.skip('This environment cannot create test hard links.'); throw error; }
-  await assert.rejects(buildStatic({ rootDir: f.root }), /multiple hard links/);
+  await assert.rejects(f.build(), /multiple hard links/);
   assert.equal(await f.read('outside-target/keep.txt'), 'UNCHANGED');
 });
 
 test('a link to an existing but non-allowlisted source file fails the release preflight', async (t) => {
   const f = await fixture(t);
   await f.put('index.html', '<a href="output/private-not-for-publication.txt">Private output must not ship</a>');
-  await assert.rejects(buildStatic({ rootDir: f.root }), /Missing packaged local link/);
+  await assert.rejects(f.build(), /Missing packaged local link/);
   await assert.rejects(access(f.output));
 });
 
 test('responsive HTML, CSS, and manifest links are checked against the packaged files', async (t) => {
   const f = await fixture(t);
+  await f.put('assets/nested/photo one.webp', minimalWebp());
   await f.put('index.html', '<img srcset="assets/nested/mark.svg 1x,assets/nested/photo%20one.webp 2x"><a href="kindness-cards.html?one=1&amp;two=2#cards">Cards</a>');
   await f.put('styles.css', 'body { background: url("assets/nested/photo%20one.webp"); }');
   await f.put('manifest.webmanifest', JSON.stringify({ start_url: './?source=pwa', icons: [{ src: 'assets/nested/mark.svg' }] }));
-  const result = await buildStatic({ rootDir: f.root });
+  const result = await f.build();
   assert.ok(result.checkedLinks >= 7);
   await f.put('styles.css', 'body { background: url("assets/missing.webp"); }');
-  await assert.rejects(buildStatic({ rootDir: f.root }), /Missing packaged local link: styles.css/);
+  await assert.rejects(f.build(), /Missing packaged local link: styles.css/);
 });
 
 test('missing responsive candidates are not hidden by a valid first candidate', async (t) => {
   const f = await fixture(t);
   await f.put('index.html', '<img srcset="assets/nested/mark.svg 1x,assets/missing.webp 2x">');
-  await assert.rejects(buildStatic({ rootDir: f.root }), /Missing packaged local link/);
+  await assert.rejects(f.build(), /Missing packaged local link/);
 });
 
 test('external links and fragment-only references do not require local files', async (t) => {
   const f = await fixture(t);
   await f.put('index.html', '<a href="https://example.test/about">External</a><a href="#section">Section</a><img src="data:image/svg+xml,test"><img srcset="data:image/png;base64,AA== 1x, assets/nested/mark.svg 2x">');
-  await buildStatic({ rootDir: f.root });
+  await f.build();
 });
 
 test('root-relative, escaping, and malformed local references are rejected', async (t) => {
   for (const href of ['/styles.css', '../outside.txt', '%2e%2e/outside.txt', '%00.txt', '%E0%A4%A']) {
     const f = await fixture(t);
     await f.put('index.html', `<a href="${href}">Invalid target</a>`);
-    await assert.rejects(buildStatic({ rootDir: f.root }), /local link|Local link/);
+    await assert.rejects(f.build(), /local link|Local link/);
     await assert.rejects(access(f.output));
   }
 });
@@ -156,6 +253,6 @@ test('root-relative, escaping, and malformed local references are rejected', asy
 test('build output cannot replace its source root, assets, or an external directory', async (t) => {
   const f = await fixture(t);
   for (const outputDir of [f.root, join(f.root, 'assets'), dirname(f.root), join(f.root, 'nested/dist')]) {
-    await assert.rejects(buildStatic({ rootDir: f.root, outputDir }), /Static output/);
+    await assert.rejects(f.build({ outputDir }), /Static output/);
   }
 });

@@ -6,12 +6,15 @@ Arthur Farmer's kindness movement, rooted in Ephesians 4:32. This repository con
 
 - Arthur's founder story and a people-first kindness challenge: help comes before filming, and permission comes before sharing.
 - [Merchandise studio](merch.html): large front/back views, three palettes, two lettering styles, enlarged artwork, and downloadable editable SVG designs.
+- Five premium, clearly labeled concept boards with lightweight gallery previews and full-size artwork; they are visual directions, not manufactured inventory or items for sale.
 - Ephesians 4:32 KJV: a short invitation on the shirt front and the complete verse on the back.
 - New AI-generated studio imagery with responsive WebP delivery. Original concepts are preserved and can still be opened at full size.
 - Cinematic hands-and-golden-oil artwork with separate desktop/phone compositions, layered cloud lighting, AVIF/WebP delivery, and subtle motion with pause/reduced-motion support. [Artwork provenance](docs/HERO_ARTWORK.md).
+- A dedicated 1200-by-630 social card that names Arthur and Ephesians 4:32 in the pixels, built from a retained text-free campaign source so preview copy is exact. [Social-card provenance](docs/SOCIAL_CARD.md).
 - [Scripture cards](kindness-cards.html) and the existing [downloadable card PDF](output/pdf/BKOTA-scripture-cards.pdf).
 - A browser-local collection for stories and video links, with an explicit JSON export. Approved public content and private browser entries are kept separate.
-- Consent/privacy information and fail-closed service integration. Payment and public-submission features remain disabled in `config.js`.
+- Consent/privacy information and fail-closed service integration. Payment and public-submission features remain disabled in `config.js` until Arthur's exact accounts are verified.
+- Approved root-domain release metadata for `https://bkota.co/`; the GitHub account owns a verified `bkota.co` challenge, while traffic and HTTPS remain deployment-time checks.
 
 ## Run and verify
 
@@ -31,17 +34,22 @@ To regenerate delivery encodings from the retained image master:
 npm ci --ignore-scripts
 npm run media
 npm run media:hero
+npm run media:social
 ```
 
 Sharp is a development-only media dependency; there are no runtime CDN dependencies. The existing GitHub Pages publishing source is not changed by the quality workflow.
 
 ## Production boundaries
 
-The default public preview address is <https://robertashworth1986-debug.github.io/bkota/>. Code on a feature branch is not evidence that the public site has been updated.
+The pre-cutover public preview address is <https://robertashworth1986-debug.github.io/bkota/>. Code on a feature branch is not evidence that the public site or domain has been updated.
 
-Arthur identified **bkota.co** as his domain. On September 5, 2026, it resolved to Shopify and displayed an unavailable-store page; domain connection is not complete. See [domain connection handoff](docs/DOMAIN_CONNECTION.md). No `CNAME` or DNS change is included in this update, and canonical URLs remain on the existing Pages origin until the destination is confirmed.
+Arthur selected **bkota.co** to replace the Shopify storefront on September 12, 2026. That day, GoDaddy accepted GitHub's exact TXT challenge and GitHub reported the domain verified. The approved cutover source now includes the root `CNAME` and `bkota.co` canonical metadata. Domain connection is still not complete until the reviewed commit is deployed, GoDaddy serves the four GitHub Pages apex addresses and `www` CNAME, GitHub issues HTTPS, and the live pages pass final checks. See the [domain connection handoff](docs/DOMAIN_CONNECTION.md).
 
-Connecting a domain does **not** provide public video uploads, durable shared storage, moderation, or checkout. Those need an approved service and moderator/operator accounts. Until then, browser entries are private/local and are not submissions. Clearing browser storage can erase them; JSON exports contain text and video links, not video files. Older imported browser records may have unknown submission history.
+After the coordinated merge and DNS replacement, run `npm run verify:domain`. It fails closed unless the apex returns all four documented GitHub Pages IPv4 addresses, `www` is the exact Pages CNAME and redirects to the apex, HTTPS serves the BKOTA document, and the expected title, canonical URL, and scripture marker are present. Its JSON output is a verification receipt, not evidence of account ownership or payment readiness.
+
+Connecting a domain does **not** provide public video uploads, durable shared storage, moderation, or checkout. Those need an approved service and moderator/operator accounts. Until then, browser entries are private/local and are not submissions. Clearing browser storage can erase them; JSON exports contain text and video links, not video files. Older imported browser records may have unknown submission history. The initial static launch therefore costs $0 per month for hosting and does not need a VPS; the GoDaddy domain renewal remains separate.
+
+The support panel describes an optional one-time business-profile payment. It is not a recurring subscription, charitable donation, or tax-deductible contribution. Keep the button disabled until Arthur creates and controls the exact BKOTA Venmo business profile, exports its official share link/QR from his app, and approves a separate-device test. Never place Venmo credentials, bank details, identity documents, or personal financial data in this repository.
 
 The shirt viewer is a spatial vector illustration, not a physically accurate 3D garment simulation. The new merchandise raster master is **1536 × 1024**. The cinematic hero masters are **1672 × 941** (landscape) and **1122 × 1402** (portrait), not native 4K. SVG artwork scales independently of raster resolution, but fonts, inks, underbase, placement, and garment fit must be checked with a printer before manufacture. No stock, sales, fulfillment, or physical product quality is represented as verified.
 

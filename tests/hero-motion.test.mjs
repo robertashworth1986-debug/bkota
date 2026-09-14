@@ -8,6 +8,7 @@ const oilSource = source.slice(source.indexOf('function startLivingOil()'), sour
 
 function startOil(options = {}) {
   const properties = new Map();
+  const heroVisualProperties = new Map();
   const paintTransforms = [];
   const events = new Map();
   const imageEvents = new Map();
@@ -18,12 +19,28 @@ function startOil(options = {}) {
   let requestedFrames = 0;
   let canceledFrames = 0;
   let paintedPaths = 0;
+  let paintCount = 0;
+  let ellipseCount = 0;
+  let closedPaths = 0;
+  let dashedLanes = 0;
+  let paintSignature = [];
+  let queuedFrame;
+  let clock = 0;
+  const record = (name, values = []) => {
+    paintSignature.push([name, ...values.map((value) => typeof value === 'number' ? Number(value.toFixed(5)) : value)]);
+  };
   const gradient = { addColorStop() {} };
   const context = new Proxy({
     setTransform(...args) { paintTransforms.push(args); },
     createLinearGradient() { return gradient; },
     createRadialGradient() { return gradient; },
-    beginPath() { paintedPaths += 1; }
+    clearRect() { paintCount += 1; paintSignature = []; },
+    beginPath() { paintedPaths += 1; },
+    moveTo(...args) { record('moveTo', args); },
+    lineTo(...args) { record('lineTo', args); },
+    ellipse(...args) { ellipseCount += 1; record('ellipse', args); },
+    closePath() { closedPaths += 1; record('closePath'); },
+    setLineDash(values) { if (values.length) dashedLanes += 1; record('setLineDash', values); }
   }, { get(target, key) { return key in target ? target[key] : () => {}; } });
   const heroImage = {
     naturalWidth: options.naturalWidth ?? 2000,
@@ -38,6 +55,7 @@ function startOil(options = {}) {
     clientWidth: options.width ?? 1000,
     clientHeight: options.height ?? 500,
     querySelector() { return heroImage; },
+    style: { setProperty(key, value) { heroVisualProperties.set(key, value); } },
     getBoundingClientRect() { throw new Error('Do not use a transformed visual rectangle for local positioning'); }
   };
   const canvas = {
@@ -64,9 +82,9 @@ function startOil(options = {}) {
     matchMedia() { return reducedMotion; },
     getComputedStyle() { return { objectPosition: options.objectPosition ?? '50% 50%' }; },
     devicePixelRatio: options.dpr ?? 3,
-    performance: { now() { return 100; } },
-    requestAnimationFrame() { requestedFrames += 1; return requestedFrames; },
-    cancelAnimationFrame() { canceledFrames += 1; },
+    performance: { now() { clock += options.clockStep ?? 100; return clock; } },
+    requestAnimationFrame(callback) { requestedFrames += 1; queuedFrame = callback; return requestedFrames; },
+    cancelAnimationFrame() { canceledFrames += 1; queuedFrame = undefined; },
     addEventListener(name, callback, options) { events.set(name, callback); listenerOptions.set(name, options); },
     removeEventListener(name, callback) { if (events.get(name) === callback) events.delete(name); },
     ResizeObserver: class { constructor(callback) { resizeCallback = callback; } observe() {} disconnect() { disconnectedObservers += 1; } },
@@ -74,10 +92,15 @@ function startOil(options = {}) {
   };
   vm.runInNewContext(`${oilSource}\nstartLivingOil();`, sandbox);
   return {
-    properties, canvas, paintTransforms, heroImage, heroVisual, document,
+    properties, heroVisualProperties, canvas, paintTransforms, heroImage, heroVisual, document,
     get requestedFrames() { return requestedFrames; },
     get canceledFrames() { return canceledFrames; },
     get paintedPaths() { return paintedPaths; },
+    get paintCount() { return paintCount; },
+    get ellipseCount() { return ellipseCount; },
+    get closedPaths() { return closedPaths; },
+    get dashedLanes() { return dashedLanes; },
+    get paintSignature() { return JSON.stringify(paintSignature); },
     get disconnectedObservers() { return disconnectedObservers; },
     get imageLoadListenerCount() { return imageEvents.has('load') ? 1 : 0; },
     get pagehideListenerCount() { return events.has('pagehide') ? 1 : 0; },
@@ -90,6 +113,11 @@ function startOil(options = {}) {
       if (listenerOptions.get('pagehide')?.once) events.delete('pagehide');
       callback?.({ persisted });
     },
+    runFrame(now) {
+      const callback = queuedFrame;
+      queuedFrame = undefined;
+      callback?.(now);
+    },
     resize() { resizeCallback(); }
   };
 }
@@ -98,10 +126,33 @@ test('oil anchor and bitmap use untransformed local CSS pixels, with capped DPR'
   const oil = startOil();
   assert.equal(oil.properties.get('--oil-screen-x'), '727.00px');
   assert.equal(oil.properties.get('--oil-screen-y'), '167.50px');
+  assert.equal(oil.heroVisualProperties.get('--oil-screen-x'), '727.00px');
+  assert.equal(oil.heroVisualProperties.get('--oil-screen-y'), '167.50px');
   assert.equal(oil.canvas.width, 320);
   assert.equal(oil.canvas.height, 700);
   assert.deepEqual(oil.paintTransforms[0], [2, 0, 0, 2, 0, 0]);
   assert.ok(oil.paintedPaths > 0);
+});
+
+test('oil rendering includes a tapered body, four moving caustic lanes, a source glint, and 18 droplets', () => {
+  const oil = startOil();
+  assert.ok(oil.closedPaths >= 1, 'tapered oil body is a closed filled shape');
+  assert.equal(oil.dashedLanes, 4, 'four animated caustic lanes');
+  assert.equal(oil.ellipseCount, 20, 'source glow, source glint, and 18 oil droplets');
+});
+
+test('animation painting is capped at 30 frames per second', () => {
+  const oil = startOil();
+  assert.equal(oil.paintCount, 1);
+  oil.runFrame(10);
+  oil.runFrame(20);
+  assert.equal(oil.paintCount, 1);
+  oil.runFrame(34);
+  assert.equal(oil.paintCount, 2);
+  oil.runFrame(50);
+  assert.equal(oil.paintCount, 2);
+  oil.runFrame(68);
+  assert.equal(oil.paintCount, 3);
 });
 
 test('measured desktop anchors override old image coordinates', () => {
@@ -207,7 +258,18 @@ test('reduced motion, saved data, user pause, and hidden pages retain static-onl
     const oil = startOil({ [option]: true });
     assert.equal(oil.requestedFrames, 0, option);
     assert.ok(oil.paintedPaths > 0, option);
+    const frozenSignature = oil.paintSignature;
+    oil.resize();
+    assert.equal(oil.paintSignature, frozenSignature, `${option} frame remains visually frozen`);
   }
+});
+
+test('a manually paused frame remains frozen across repeated refresh events', () => {
+  const oil = startOil();
+  oil.setPaused(true);
+  const frozenSignature = oil.paintSignature;
+  oil.setPaused(true);
+  assert.equal(oil.paintSignature, frozenSignature);
 });
 
 test('offscreen and user pause controls still stop and resume animation scheduling', () => {

@@ -1,5 +1,5 @@
 "use strict";
-const CACHE = "bkota-shell-v12";
+const CACHE = "bkota-shell-v17";
 const SHELL = [
   "./", "index.html", "kindness-cards.html", "cards.js", "styles.css", "app.js",
   "community.js", "social-video.js", "merch.html", "merch.css", "merch.js",
@@ -9,7 +9,7 @@ const SHELL = [
   "assets/hands-of-kindness-v2.webp", "assets/hands-of-kindness-v2.avif",
   "assets/hands-of-kindness-v2-1120.webp", "assets/hands-of-kindness-v2-1120.avif",
   "assets/hands-of-kindness-v2-mobile.webp", "assets/hands-of-kindness-v2-mobile.avif",
-  "assets/kindness-world-3d-v1.webp"
+  "assets/kindness-world-3d-v1.webp", "assets/bkota-social-card-v1.png"
 ];
 const scopeUrl = new URL("./", self.location.href);
 const shellPaths = new Set(SHELL.map((path) => new URL(path, scopeUrl).pathname));
@@ -38,11 +38,14 @@ self.addEventListener("fetch", (event) => {
       }
       return response;
     } catch {
-      const cached = await caches.match(event.request, { ignoreSearch: isDocument });
+      // Read only BKOTA's current named cache. This origin can host unrelated
+      // GitHub Pages projects whose caches must never satisfy BKOTA requests.
+      const cache = await caches.open(CACHE);
+      const cached = await cache.match(event.request, { ignoreSearch: isDocument });
       if (cached) return cached;
       // HTML is only a navigation fallback. Never return index.html as a script/image.
       if (event.request.mode === "navigate" && isDocument) {
-        const fallback = await caches.match(new URL("index.html", scopeUrl).href);
+        const fallback = await cache.match(new URL("index.html", scopeUrl).href);
         if (fallback) return fallback;
       }
       return new Response("This resource is unavailable offline.", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
