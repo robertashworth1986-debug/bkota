@@ -8,6 +8,13 @@ import "../social-video.js";
 const appSource = await readFile(new URL("../app.js", import.meta.url), "utf8");
 const receiptId = "00000000-0000-4000-8000-000000000001";
 const acceptedReceipt = (kind) => ({ accepted: true, kind, id: receiptId, status: "pending" });
+const readyHealth = {
+  ok: true, service: "bkota", contractVersion: 1,
+  publicFeedEnabled: true, publicSubmissionsEnabled: true,
+  moderationQueueEnabled: true, privacyReportsEnabled: true,
+  removalRequestsEnabled: true, supportProfileEnabled: false,
+  anonymousImpactEnabled: false,
+};
 const jsonResponse = (payload, options = {}) => new Response(JSON.stringify(payload), {
   status: 200, headers: { "content-type": "application/json; charset=utf-8" }, ...options,
 });
@@ -29,7 +36,7 @@ class Node {
 }
 
 async function page({ postResponse, connected = true } = {}) {
-  const ids = ["feed", "bkotaForm", "formStatus", "messageText", "storyConsent", "continent", "name", "city", "anon", "storyWebsite", "seedDemo", "clearFeed", "videoWall", "videoStatus", "videoForm", "videoUrl", "videoCaption", "videoConsent", "videoWebsite", "videoSubmit", "seedVideos", "clearVideos", "downloadCollection", "collectionStatus", "venmoButton", "connectionMode", "connectionNote", "globalDeedCount", "approvedVideoCount", "continentCount", "shareMovement", "shareStatus", "copyChallenge"];
+  const ids = ["feed", "bkotaForm", "formStatus", "messageText", "storyConsent", "continent", "name", "city", "anon", "storyWebsite", "seedDemo", "clearFeed", "videoWall", "videoStatus", "videoForm", "videoUrl", "videoCaption", "videoConsent", "videoOwnership", "videoSafety", "videoWebsite", "videoSubmit", "seedVideos", "clearVideos", "downloadCollection", "collectionStatus", "venmoButton", "connectionMode", "connectionNote", "globalDeedCount", "approvedVideoCount", "continentCount", "shareMovement", "shareStatus", "copyChallenge"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Node()]));
   nodes.bkotaForm.submit = new Node();
   nodes.messageText.value = "I helped a neighbor.";
@@ -38,6 +45,8 @@ async function page({ postResponse, connected = true } = {}) {
   nodes.videoUrl.value = "https://www.youtube.com/watch?v=abcdefghijk";
   nodes.videoCaption.value = "A helping hand";
   nodes.videoConsent.checked = true;
+  nodes.videoOwnership.checked = true;
+  nodes.videoSafety.checked = true;
   const requests = [];
   const values = new Map();
   const context = {
@@ -51,12 +60,13 @@ async function page({ postResponse, connected = true } = {}) {
       addEventListener() {},
     },
     localStorage: { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: (key) => values.delete(key) },
-    navigator: {}, location: { hash: "", href: "https://example.test/", pathname: "/", search: "" },
+    navigator: {}, location: { hash: "", href: "https://bkota.co/", pathname: "/", search: "" },
+    history: { state: null, replaceState() {} },
     crypto: { randomUUID: () => receiptId }, URL, URLSearchParams, Blob, AbortSignal, console,
     fetch: async (path, options = {}) => {
       requests.push({ path, options });
       if (options.method === "POST") return postResponse(path, options);
-      if (path === "/api/health") return jsonResponse({ publicSubmissionsEnabled: true });
+      if (path === "/api/health") return jsonResponse(readyHealth);
       return jsonResponse(path === "/api/stats" ? {} : { items: [] });
     },
   };

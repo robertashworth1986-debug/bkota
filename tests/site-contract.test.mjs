@@ -88,16 +88,68 @@ test("public configuration keeps submissions, provider APIs, and payments disabl
   assert.equal(config.venmoHandle, "");
 });
 
-test("root-domain launch metadata consistently targets bkota.co while support stays fail-closed", () => {
+test("approved root-domain release uses bkota.co canonicals while support stays fail-closed", () => {
   assert.equal(read("CNAME").trim(), "bkota.co");
   const html = read("index.html");
   assert.match(html, /<link rel="canonical" href="https:\/\/bkota\.co\/">/);
   assert.match(html, /<meta property="og:url" content="https:\/\/bkota\.co\/">/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/bkota\.co\/assets\/bkota-social-card-v1\.png">/);
   assert.match(html, /one-time payment/i);
   assert.match(html, /not a charitable or tax-deductible contribution/i);
   assert.match(html, /<button[^>]+id="venmoButton"[^>]+disabled/i);
   assert.match(read("robots.txt"), /Sitemap: https:\/\/bkota\.co\/sitemap\.xml/);
   assert.match(read("sitemap.xml"), /<loc>https:\/\/bkota\.co\//);
+  for (const [page, path] of [["privacy.html", "privacy.html"], ["kindness-cards.html", "kindness-cards.html"], ["merch.html", "merch.html"]]) {
+    assert.match(read(page), new RegExp(`<link rel="canonical" href="https:\\\/\\\/bkota\\.co\\\/${path}">`));
+  }
+});
+
+test("Arthur-led sharing metadata and offline labels remain honest", () => {
+  const html = read("index.html");
+  assert.match(html, /<meta name="description" content="[^"]*Arthur Farmer[^"]*Ephesians 4:32[^"]*">/);
+  assert.match(html, /<meta property="og:description" content="[^"]*Arthur Farmer[^"]*Ephesians 4:32[^"]*">/);
+  assert.match(html, /<meta name="twitter:description" content="[^"]*Arthur Farmer[^"]*Ephesians 4:32[^"]*">/);
+  assert.match(html, /class="nav-cta" href="#join">Share BKOTA<\/a>/);
+  assert.match(html, /id="videoSubmit"[^>]*>Keep link in this tab only<\/button>/);
+  assert.match(html, /id="storySubmit"[^>]*>Keep in this tab only<\/button>/);
+  const privacy = read("privacy.html");
+  assert.match(privacy, /does not write new stories or video links to browser storage/i);
+  assert.match(privacy, /last only while that particular page instance remains available/i);
+  assert.doesNotMatch(html, /From a farmer's faith/i);
+  assert.doesNotMatch(html, /class="nav-cta" href="#share"/);
+});
+
+test("homepage gives Arthur's story, scripture, choose-do-share action, and general sharing in that order", () => {
+  const html = read("index.html");
+  const story = html.indexOf('id="story"');
+  const verse = html.indexOf('id="verse"');
+  const today = html.indexOf('id="today"');
+  const sharing = html.indexOf('id="join"');
+  assert.ok(story > 0 && story < verse && verse < today && today < sharing);
+  const choices = [...html.matchAll(/<input type="radio" name="dailyAct" value="([a-z]+)">/g)].map((match) => match[1]);
+  assert.deepEqual(choices, ["encourage", "listen", "help", "repair", "include"]);
+  assert.equal((html.match(/<label class="act-choice">/g) || []).length, 5);
+  assert.match(html, /id="videoWebsite"[^>]*maxlength="120"/);
+  assert.match(html, /id="storyWebsite"[^>]*maxlength="120"/);
+  for (const id of ["videoConsent", "videoOwnership", "videoSafety"]) {
+    assert.match(html, new RegExp(`<input[^>]+id="${id}"[^>]+required`));
+  }
+  assert.match(html, /<fieldset class="act-picker">[\s\S]*?<legend>/);
+  assert.match(html, /id="dailyActDone" type="checkbox" disabled/);
+  assert.match(html, /id="dailyActShare" type="submit" disabled/);
+  assert.match(html, /id="dailyActStatus" role="status" aria-live="polite"/);
+  assert.match(html, /not stored, published, or counted by BKOTA/i);
+  assert.match(html, /No account, purchase, camera, or public post is required/i);
+  assert.match(html, /href="#join">Already did an act\? Open the sharing tools/);
+  assert.match(html, /class="scroll-cue" href="#story"><span>Meet Arthur<\/span>/);
+  assert.equal((html.match(/href="#today"/g) || []).length, 4);
+  assert.match(html, /id="challenge" aria-hidden="true"/);
+});
+
+test("short-phone CSS prevents the quick dock from covering the hero", () => {
+  const css = read("styles.css");
+  assert.ok(css.includes("@media(max-width:360px) and (max-height:720px){body{padding-bottom:0}.hero-signals,.mobile-dock{display:none}"));
+  assert.ok(css.includes("@media(max-width:560px){.site-header{padding-block:1rem}.site-header .nav-cta{display:none}"));
 });
 
 test("social-video parser canonicalizes public provider links and removes tracking parameters", () => {
@@ -163,9 +215,13 @@ function workerHarness({ online = false, cachedIndex = true } = {}) {
     caches: {
       keys: async () => ["unrelated-app-v3", "bkota-shell-v1", "bkota-shell-v11"],
       delete: async (key) => { deleted.push(key); return true; },
-      open: async () => ({ put: async (...args) => cachedWrites.push(args), addAll: async () => {} }),
-      match: async (request) => cachedIndex && String(request) === "https://example.test/bkota/index.html"
-        ? new Response("<html>cached shell</html>", { headers: { "Content-Type": "text/html" } }) : undefined,
+      open: async () => ({
+        put: async (...args) => cachedWrites.push(args),
+        addAll: async () => {},
+        match: async (request) => cachedIndex && String(request) === "https://example.test/bkota/index.html"
+          ? new Response("<html>cached shell</html>", { headers: { "Content-Type": "text/html" } }) : undefined,
+      }),
+      match: async () => { throw new Error("Global cache lookup must not be used"); },
     },
   };
   vm.runInNewContext(read("sw.js"), sandbox);

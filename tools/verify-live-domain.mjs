@@ -99,7 +99,7 @@ export async function verifyLiveDomain({
     let target;
     try { target = new URL(location, `https://${WWW_HOST}/`); } catch {}
     if (![301, 302, 307, 308].includes(response.status)) issues.push('www-redirect-status');
-    if (!target || target.protocol !== 'https:' || target.hostname !== APEX_HOST || target.pathname !== '/') issues.push('www-redirect-target');
+    if (!target || target.href !== `https://${APEX_HOST}/`) issues.push('www-redirect-target');
   } catch (error) {
     issues.push('www-https-unavailable');
     observed.wwwHttpsError = error?.name || 'error';

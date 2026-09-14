@@ -6,15 +6,51 @@ import "../community.js";
 import "../social-video.js";
 
 const { STORY_KEY, VIDEO_KEY, readCollection, appendCollection, clearCollection, exportCollection } = globalThis.BKOTA_COMMUNITY;
+const READY_HEALTH = Object.freeze({
+  ok: true,
+  service: "bkota",
+  contractVersion: 1,
+  publicFeedEnabled: true,
+  publicSubmissionsEnabled: true,
+  moderationQueueEnabled: true,
+  privacyReportsEnabled: true,
+  removalRequestsEnabled: true,
+  supportProfileEnabled: false,
+  anonymousImpactEnabled: false
+});
+const APPROVED_STORY = Object.freeze({
+  id: "00000000-0000-4000-8000-000000000011",
+  kind: "story",
+  status: "approved",
+  anonymous: false,
+  name: "A friend",
+  city: "Nashville",
+  continent: "North America",
+  message: "Approved shared story",
+  publishedAt: "2026-09-05T12:00:00.000Z"
+});
+const APPROVED_VIDEO = Object.freeze({
+  id: "00000000-0000-4000-8000-000000000012",
+  kind: "video",
+  status: "approved",
+  url: "https://www.youtube.com/watch?v=abcdefghijk",
+  provider: "youtube",
+  platform: "YouTube",
+  caption: "A helping hand",
+  publishedAt: "2026-09-05T12:01:00.000Z"
+});
 
 function storage(initial = {}) {
   const values = new Map(Object.entries(initial));
   return {
     values,
     writes: 0,
-    getItem(key) { return values.get(key) ?? null; },
-    setItem(key, value) { this.writes += 1; values.set(key, String(value)); },
-    removeItem(key) { values.delete(key); }
+    readKeys: [],
+    writeKeys: [],
+    removeKeys: [],
+    getItem(key) { this.readKeys.push(key); return values.get(key) ?? null; },
+    setItem(key, value) { this.writes += 1; this.writeKeys.push(key); values.set(key, String(value)); },
+    removeItem(key) { this.removeKeys.push(key); values.delete(key); }
   };
 }
 
@@ -82,11 +118,11 @@ test("clear reports storage errors and only deletes its selected collection", ()
 test("backup is private, excludes examples and internal fields, and contains links not video files", () => {
   const local = storage({
     [STORY_KEY]: JSON.stringify([
-      { id: "local-id", message: "Someone listened", name: "Name", city: "City", anonymous: true, continent: "Europe", website: "trap", attributionCode: "not-exported", consent: true, localOnly: true },
+      { id: "local-id", message: "Someone listened", name: "Name", city: "City", anonymous: true, continent: "Europe", website: "trap", attributionCode: "Campaign_Code_12345678", consent: true, localOnly: true },
       { example: true, message: "Example only" }
     ]),
     [VIDEO_KEY]: JSON.stringify([
-      { url: "https://www.youtube.com/watch?v=abcdefghijk", caption: "Helping", website: "trap", attributionCode: "not-exported" },
+      { url: "https://www.youtube.com/watch?v=abcdefghijk", caption: "Helping", website: "trap", attributionCode: "Campaign_Code_12345678" },
       { example: true, caption: "Example only" }
     ])
   });
@@ -133,8 +169,9 @@ class Node {
 const appSource = await readFile(new URL("../app.js", import.meta.url), "utf8");
 const collectText = (node) => [node.textContent, ...node.children.map((child) => typeof child === "string" ? child : collectText(child))].join(" ");
 
-async function page({ local = storage(), connected = false, responses = {}, storageGetterFails = false } = {}) {
-  const ids = ["feed", "bkotaForm", "formStatus", "messageText", "storyConsent", "continent", "name", "city", "anon", "storyWebsite", "seedDemo", "clearFeed", "videoWall", "videoStatus", "videoForm", "videoUrl", "videoCaption", "videoConsent", "videoWebsite", "videoSubmit", "seedVideos", "clearVideos", "downloadCollection", "collectionStatus", "venmoButton", "connectionMode", "connectionNote", "globalDeedCount", "approvedVideoCount", "continentCount", "shareMovement", "shareStatus", "copyChallenge"];
+async function page({ local = storage(), connected = false, responses = {}, storageGetterFails = false, navigatorOverrides = {}, href = "", configOverrides = {} } = {}) {
+  href ||= connected ? "https://bkota.co/" : "https://example.test/";
+  const ids = ["feed", "bkotaForm", "formStatus", "messageText", "storyConsent", "continent", "name", "city", "anon", "storyWebsite", "seedDemo", "clearFeed", "videoWall", "videoStatus", "videoForm", "videoUrl", "videoCaption", "videoConsent", "videoOwnership", "videoSafety", "videoWebsite", "videoSubmit", "seedVideos", "clearVideos", "downloadCollection", "collectionStatus", "venmoButton", "connectionMode", "connectionNote", "globalDeedCount", "approvedVideoCount", "continentCount", "approvedStoryStat", "approvedVideoStat", "continentStat", "shareMovement", "shareStatus", "copyChallenge"];
   const nodes = Object.fromEntries(ids.map((id) => [id, new Node()]));
   nodes.bkotaForm.submit = new Node("button");
   nodes.messageText.value = "I helped my neighbor carry groceries.";
@@ -143,6 +180,8 @@ async function page({ local = storage(), connected = false, responses = {}, stor
   nodes.videoUrl.value = "https://www.youtube.com/watch?v=abcdefghijk";
   nodes.videoCaption.value = "A helping hand";
   nodes.videoConsent.checked = true;
+  nodes.videoOwnership.checked = true;
+  nodes.videoSafety.checked = true;
   const requests = [];
   const downloads = [];
   class DownloadURL extends URL {
@@ -162,10 +201,11 @@ async function page({ local = storage(), connected = false, responses = {}, stor
   const context = {
     BKOTA_COMMUNITY: globalThis.BKOTA_COMMUNITY,
     BKOTA_SOCIAL_VIDEO: globalThis.BKOTA_SOCIAL_VIDEO,
-    BKOTA_CONFIG: Object.freeze({ moderatedServiceEnabled: connected }),
+    BKOTA_CONFIG: Object.freeze({ ...configOverrides, moderatedServiceEnabled: connected }),
     document,
-    navigator: {},
-    location: { hash: "", href: "https://example.test/", pathname: "/", search: "" },
+    navigator: navigatorOverrides,
+    location: { hash: new URL(href).hash, href, pathname: new URL(href).pathname, search: new URL(href).search },
+    history: { state: null, replaceState() {} },
     crypto: { randomUUID: () => "00000000-0000-4000-8000-000000000001" },
     URL: DownloadURL,
     URLSearchParams,
@@ -236,8 +276,8 @@ test("connected approved feeds never overwrite or relabel the private collection
   const original = JSON.stringify([{ message: "Private memory", localOnly: true }, { message: "Legacy memory" }]);
   const local = storage({ [STORY_KEY]: original });
   const view = await page({ local, connected: true, responses: {
-    "/api/health": { publicSubmissionsEnabled: true },
-    "/api/stories": { items: [{ message: "Approved shared story" }] },
+    "/api/health": READY_HEALTH,
+    "/api/stories": { items: [APPROVED_STORY] },
     "/api/videos": { items: [] },
     "/api/stats": { approvedDeeds: 8, approvedVideos: 3, continentsReached: 2 }
   } });
@@ -250,12 +290,110 @@ test("connected approved feeds never overwrite or relabel the private collection
   assert.match(collectText(view.nodes.feed), /Private memory/);
   assert.equal(view.nodes.globalDeedCount.textContent, "8");
   assert.equal(view.nodes.approvedVideoCount.textContent, "3");
+  assert.equal(view.nodes.approvedStoryStat.hidden, false);
+  assert.equal(view.nodes.approvedVideoStat.hidden, false);
+  assert.equal(view.nodes.continentStat.hidden, false);
   assert.equal(exportCollection(() => local, "2026-09-05T12:00:00Z").data.stories.length, 2);
+});
+
+test("moderated mode never contacts an API outside the exact credential-free production origin", async () => {
+  for (const href of [
+    "https://robertashworth1986-debug.github.io/bkota/",
+    "http://bkota.co/",
+    "https://www.bkota.co/",
+    "https://user@bkota.co/",
+    "https://bkota.co:8443/"
+  ]) {
+    const view = await page({ connected: true, href, responses: { "/api/health": READY_HEALTH } });
+    assert.equal(view.requests.length, 0, href);
+    assert.match(view.nodes.connectionMode.textContent, /Private collection|Temporary tab collection/);
+    assert.equal(view.nodes.bkotaForm.submit.textContent.includes("Submit"), false);
+  }
+});
+
+test("every public service identity and safety capability is required before activation", async () => {
+  const required = ["ok", "service", "contractVersion", "publicFeedEnabled", "publicSubmissionsEnabled", "moderationQueueEnabled", "privacyReportsEnabled", "removalRequestsEnabled", "supportProfileEnabled"];
+  const invalidHealth = required.map((key) => {
+    const health = { ...READY_HEALTH };
+    delete health[key];
+    return health;
+  });
+  invalidHealth.push(
+    { ...READY_HEALTH, service: "another-service" },
+    { ...READY_HEALTH, contractVersion: "1" },
+    { ...READY_HEALTH, moderationQueueEnabled: false },
+    { ...READY_HEALTH, anonymousImpactEnabled: "false" },
+    { ...READY_HEALTH, unexpectedCapability: true }
+  );
+  for (const health of invalidHealth) {
+    const view = await page({ connected: true, responses: { "/api/health": health } });
+    assert.equal(view.requests.length, 1);
+    assert.equal(view.requests[0].path, "/api/health");
+    assert.match(view.nodes.connectionMode.textContent, /Private collection/);
+  }
+});
+
+test("public feeds accept only exact approved records and fail the whole mode closed on drift", async () => {
+  const invalidCases = [
+    { stories: { items: [{ ...APPROVED_STORY, status: "pending" }] }, videos: { items: [] } },
+    { stories: { items: [{ ...APPROVED_STORY, privateNote: "must never render" }] }, videos: { items: [] } },
+    { stories: { items: [{ ...APPROVED_STORY, anonymous: true, name: "Retained", city: "Private" }] }, videos: { items: [] } },
+    { stories: { items: [{ ...APPROVED_STORY, message: `safe\u202Ehidden` }] }, videos: { items: [] } },
+    { stories: { items: [] }, videos: { items: [{ ...APPROVED_VIDEO, url: "https://youtu.be/abcdefghijk" }] } },
+    { stories: { items: Array.from({ length: 101 }, () => APPROVED_STORY) }, videos: { items: [] } },
+    { stories: { items: [] }, videos: { items: [], extra: true } }
+  ];
+  for (const candidate of invalidCases) {
+    const view = await page({ connected: true, responses: {
+      "/api/health": READY_HEALTH,
+      "/api/stories": candidate.stories,
+      "/api/videos": candidate.videos,
+      "/api/stats": { approvedDeeds: 1, approvedVideos: 1, continentsReached: 1 }
+    } });
+    assert.match(view.nodes.connectionMode.textContent, /Private collection/);
+    assert.doesNotMatch(collectText(view.nodes.feed), /Approved community story|must never render|Retained|Private/);
+    assert.equal(view.nodes.approvedStoryStat.hidden, true);
+  }
+
+  const valid = await page({ connected: true, responses: {
+    "/api/health": READY_HEALTH,
+    "/api/stories": { items: [APPROVED_STORY] },
+    "/api/videos": { items: [APPROVED_VIDEO] },
+    "/api/stats": { approvedDeeds: 1, approvedVideos: 1, continentsReached: 1 }
+  } });
+  assert.match(valid.nodes.connectionMode.textContent, /Moderated platform connected/);
+  assert.match(collectText(valid.nodes.feed), /Approved community story/);
+  assert.match(collectText(valid.nodes.videoWall), /approved community link/);
+});
+
+test("shared GitHub Pages preview keeps personal entries tab-only and never reads its origin-wide collection", async () => {
+  const legacyStory = JSON.stringify([{ message: "An older private preview" }]);
+  const legacyVideo = JSON.stringify([{ url: "https://youtu.be/abcdefghijk", caption: "Older link" }]);
+  const local = storage({ [STORY_KEY]: legacyStory, [VIDEO_KEY]: legacyVideo });
+  const view = await page({ local, href: "https://robertashworth1986-debug.github.io/bkota/" });
+  assert.equal(local.readKeys.includes(STORY_KEY), false);
+  assert.equal(local.readKeys.includes(VIDEO_KEY), false);
+  assert.equal(view.nodes.bkotaForm.submit.textContent, "Keep in this tab only");
+  assert.equal(view.nodes.videoSubmit.textContent, "Keep link in this tab only");
+  assert.match(view.nodes.connectionMode.textContent, /Temporary tab collection/i);
+
+  await view.submit("bkotaForm");
+  assert.equal(view.nodes.bkotaForm.resetCount, 1);
+  assert.equal(local.values.get(STORY_KEY), legacyStory);
+  assert.equal(local.values.get(VIDEO_KEY), legacyVideo);
+  assert.equal(local.writes, 0);
+  assert.match(view.nodes.formStatus.textContent, /temporarily in this open tab/i);
+  assert.match(collectText(view.nodes.feed), /Temporary in this tab · not submitted/);
+
+  const reloaded = await page({ local, href: "https://robertashworth1986-debug.github.io/bkota/" });
+  assert.doesNotMatch(collectText(reloaded.nodes.feed), /I helped my neighbor carry groceries|An older private preview/);
+  assert.equal(local.readKeys.includes(STORY_KEY), false);
+  assert.equal(local.readKeys.includes(VIDEO_KEY), false);
 });
 
 test("public counters reject coercible non-number values", async () => {
   const view = await page({ connected: true, responses: {
-    "/api/health": { publicSubmissionsEnabled: true },
+    "/api/health": READY_HEALTH,
     "/api/stories": { items: [] },
     "/api/videos": { items: [] },
     "/api/stats": { approvedDeeds: "8", approvedVideos: true, continentsReached: [], byContinent: { Africa: "2" } }
@@ -263,11 +401,48 @@ test("public counters reject coercible non-number values", async () => {
   assert.equal(view.nodes.globalDeedCount.textContent, "0");
   assert.equal(view.nodes.approvedVideoCount.textContent, "0");
   assert.equal(view.nodes.continentCount.textContent, "0");
+  assert.equal(view.nodes.approvedStoryStat.hidden, true);
+  assert.equal(view.nodes.approvedVideoStat.hidden, true);
+  assert.equal(view.nodes.continentStat.hidden, true);
+});
+
+test("offline launch hides unverified public counters", async () => {
+  const view = await page();
+  assert.equal(view.nodes.approvedStoryStat.hidden, true);
+  assert.equal(view.nodes.approvedVideoStat.hidden, true);
+  assert.equal(view.nodes.continentStat.hidden, true);
+});
+
+test("native sharing reports only the share-sheet outcome and never includes a private story", async () => {
+  let payload;
+  const view = await page({ navigatorOverrides: { share: async (value) => { payload = value; } } });
+  await view.nodes.shareMovement.listeners.click();
+  assert.match(payload.text, /Arthur Farmer/);
+  assert.doesNotMatch(`${payload.text}\n${payload.url}`, /I helped my neighbor carry groceries/);
+  assert.match(view.nodes.shareStatus.textContent, /cannot verify where or whether anything was posted/i);
+});
+
+test("canceling the native share sheet never claims that BKOTA posted", async () => {
+  const canceled = new Error("Canceled");
+  canceled.name = "AbortError";
+  const view = await page({ navigatorOverrides: { share: async () => { throw canceled; } } });
+  await view.nodes.shareMovement.listeners.click();
+  assert.match(view.nodes.shareStatus.textContent, /canceled.*Nothing was posted/i);
+});
+
+test("clipboard sharing copies only Arthur's public challenge and canonical link", async () => {
+  let copied = "";
+  const view = await page({ navigatorOverrides: { clipboard: { writeText: async (value) => { copied = value; } } } });
+  await view.nodes.shareMovement.listeners.click();
+  assert.match(copied, /#BKOTA/);
+  assert.match(copied, /#join$/);
+  assert.doesNotMatch(copied, /I helped my neighbor carry groceries/);
+  assert.match(view.nodes.shareStatus.textContent, /copied/i);
 });
 
 test("confirmed online submission enters review without being added to the local or public feed", async () => {
   const view = await page({ connected: true, responses: {
-    "/api/health": { publicSubmissionsEnabled: true },
+    "/api/health": READY_HEALTH,
     "/api/stories": { items: [] },
     "POST /api/stories": { accepted: true, kind: "story", id: "00000000-0000-4000-8000-000000000001", status: "pending" },
     "/api/videos": { items: [] },
@@ -281,9 +456,47 @@ test("confirmed online submission enters review without being added to the local
   assert.doesNotMatch(collectText(view.nodes.feed), /I helped my neighbor carry groceries/);
 });
 
+test("campaign attribution is never attached to a personal story or video submission", async () => {
+  const code = "Campaign_Code_12345678";
+  assert.equal(code.length, 22);
+  const view = await page({
+    connected: true,
+    href: `https://bkota.co/#today?c=${code}`,
+    configOverrides: { shareCampaignCode: code },
+    responses: {
+      "/api/health": READY_HEALTH,
+      "/api/stories": { items: [] },
+      "/api/videos": { items: [] },
+      "/api/stats": {},
+      "POST /api/stories": { accepted: true, kind: "story", id: "00000000-0000-4000-8000-000000000021", status: "pending" },
+      "POST /api/videos": { accepted: true, kind: "video", id: "00000000-0000-4000-8000-000000000022", status: "pending" }
+    }
+  });
+  await view.submit("bkotaForm");
+  await view.submit("videoForm");
+  const posts = view.requests.filter((request) => request.options?.method === "POST");
+  assert.equal(posts.length, 2);
+  for (const request of posts) {
+    const payload = JSON.parse(request.options.body);
+    assert.equal(Object.hasOwn(payload, "attributionCode"), false);
+    assert.equal(JSON.stringify(payload).includes(code), false);
+  }
+});
+
+test("video links require publication consent, posting authorization, and a non-vulnerable-subject declaration", async () => {
+  for (const missing of ["videoConsent", "videoOwnership", "videoSafety"]) {
+    const view = await page();
+    view.nodes[missing].checked = false;
+    await view.submit("videoForm");
+    assert.equal(view.nodes.videoForm.resetCount, 0);
+    assert.equal(view.local.values.size, 0);
+    assert.match(view.nodes.videoStatus.textContent, /permission|posting account|cannot accept/i);
+  }
+});
+
 test("unconfirmed online delivery preserves forms and does not pretend nothing was sent", async () => {
   const responses = {
-    "/api/health": { publicSubmissionsEnabled: true },
+    "/api/health": READY_HEALTH,
     "/api/stories": { items: [] },
     "/api/videos": { items: [] },
     "/api/stats": {}
@@ -314,7 +527,7 @@ test("consent is required for local stories and links, not only for future publi
   assert.equal(view.local.values.size, 0);
   assert.equal(view.nodes.bkotaForm.resetCount, 0);
   assert.equal(view.nodes.videoForm.resetCount, 0);
-  assert.match(view.nodes.videoStatus.textContent, /permission to film and share/);
+  assert.match(view.nodes.videoStatus.textContent, /permission to film and publish/);
 });
 
 test("download creates the requested private JSON without a network request or data mutation", async () => {

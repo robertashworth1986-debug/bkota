@@ -3,6 +3,11 @@ const { STORY_KEY: STORAGE_KEY, VIDEO_KEY: VIDEO_STORAGE_KEY, readCollection, ap
 
 const MAX_STORIES = 50;
 const MAX_VIDEOS = 24;
+const PUBLIC_FEED_LIMIT = 100;
+const PRODUCTION_ORIGIN = "https://bkota.co";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CONTINENTS = new Set(["Africa", "Asia", "Europe", "North America", "South America", "Oceania", "Antarctica"]);
+const UNSAFE_PUBLIC_TEXT = /[\u0000-\u001f\u007f-\u009f\u061c\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/u;
 let backendAvailable = false;
 let impactAvailable = false;
 let approvedStories = [];
@@ -11,20 +16,33 @@ let showStoryExamples = false;
 let showVideoExamples = false;
 let storySubmitting = false;
 let videoSubmitting = false;
-const browserStorage = () => globalThis.localStorage;
+const pageUrl = (() => { try { return new URL(location.href); } catch { return null; } })();
+const isProductionOrigin = pageUrl?.origin === PRODUCTION_ORIGIN && !pageUrl.username && !pageUrl.password;
+const sharedPreviewOrigin = pageUrl?.hostname.toLowerCase().endsWith(".github.io") === true;
+const tabValues = new Map();
+const tabStorage = Object.freeze({
+  getItem(key) { return tabValues.has(key) ? tabValues.get(key) : null; },
+  setItem(key, value) { tabValues.set(key, String(value)); },
+  removeItem(key) { tabValues.delete(key); }
+});
+const browserStorage = () => sharedPreviewOrigin ? tabStorage : globalThis.localStorage;
+const privateEntryLabel = sharedPreviewOrigin ? "Temporary in this tab · not submitted" : "Private on this browser · not submitted";
+const privatePlace = sharedPreviewOrigin ? "this open tab" : "this browser";
 const config = Object.hasOwn(globalThis, "BKOTA_CONFIG") && Object.isFrozen(globalThis.BKOTA_CONFIG)
   ? globalThis.BKOTA_CONFIG
   : Object.freeze({});
+const validCampaignCode = (value) => typeof value === "string" && /^[A-Za-z0-9_-]{22}$/.test(value);
+const configuredCampaignCode = validCampaignCode(config.shareCampaignCode) ? config.shareCampaignCode : "";
 const MOTION_STORAGE_KEY = "bkota_motion_paused_v1";
 const saveDataRequested = navigator.connection?.saveData === true;
 document.documentElement.classList.toggle("save-data", saveDataRequested);
 
 function captureAttributionCode() {
-  const match = location.hash.match(/^#join\?(.+)$/);
+  const match = location.hash.match(/^#(join|today)\?(.+)$/);
   if (!match) return "";
-  const code = new URLSearchParams(match[1]).get("c") || "";
-  if (!/^[A-Za-z0-9_-]{22}$/.test(code)) return "";
-  history.replaceState(history.state, "", `${location.pathname}${location.search}#join`);
+  const code = new URLSearchParams(match[2]).get("c") || "";
+  if (!configuredCampaignCode || code !== configuredCampaignCode) return "";
+  history.replaceState(history.state, "", `${location.pathname}${location.search}#${match[1]}`);
   return code;
 }
 
@@ -432,6 +450,105 @@ async function api(path, options = {}, expectedSubmissionKind = "") {
   return payload;
 }
 
+function isPlainRecord(value) {
+  return Boolean(value)
+    && typeof value === "object"
+    && !Array.isArray(value)
+    && Object.prototype.toString.call(value) === "[object Object]";
+}
+
+function hasExactKeys(value, required, optional = []) {
+  if (!isPlainRecord(value)) return false;
+  const allowed = new Set([...required, ...optional]);
+  const keys = Object.keys(value);
+  return required.every((key) => Object.hasOwn(value, key)) && keys.every((key) => allowed.has(key));
+}
+
+function isCleanPublicText(value, maxLength, allowEmpty = false) {
+  return typeof value === "string"
+    && value.length <= maxLength
+    && value.normalize("NFC") === value
+    && !UNSAFE_PUBLIC_TEXT.test(value)
+    && (allowEmpty ? value === value.trim() : value.length > 0 && value === value.trim());
+}
+
+function isPublishedAt(value) {
+  if (typeof value !== "string" || value.length !== 24) return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString() === value;
+}
+
+function isApprovedStory(item) {
+  const keys = ["id", "kind", "status", "anonymous", "name", "city", "continent", "message", "publishedAt"];
+  if (!hasExactKeys(item, keys)
+    || !UUID.test(item.id)
+    || item.kind !== "story"
+    || item.status !== "approved"
+    || typeof item.anonymous !== "boolean"
+    || !CONTINENTS.has(item.continent)
+    || !isCleanPublicText(item.message, 280)
+    || !isCleanPublicText(item.name, 40, true)
+    || !isCleanPublicText(item.city, 60, true)
+    || !isPublishedAt(item.publishedAt)) return false;
+  return item.anonymous
+    ? item.name === "" && item.city === ""
+    : item.name.length > 0;
+}
+
+function isApprovedVideo(item) {
+  const keys = ["id", "kind", "status", "url", "provider", "platform", "caption", "publishedAt"];
+  if (!hasExactKeys(item, keys)
+    || !UUID.test(item.id)
+    || item.kind !== "video"
+    || item.status !== "approved"
+    || !isCleanPublicText(item.caption, 180)
+    || !isPublishedAt(item.publishedAt)) return false;
+  const parsed = parseSocialVideoUrl(item.url);
+  return Boolean(parsed
+    && parsed.url === item.url
+    && parsed.provider === item.provider
+    && parsed.platform === item.platform);
+}
+
+function verifiedFeedItems(payload, validator) {
+  if (!hasExactKeys(payload, ["items"])
+    || !Array.isArray(payload.items)
+    || payload.items.length > PUBLIC_FEED_LIMIT
+    || !payload.items.every(validator)) return null;
+  return payload.items;
+}
+
+function liveServiceReady(health) {
+  const required = [
+    "ok",
+    "service",
+    "contractVersion",
+    "publicFeedEnabled",
+    "publicSubmissionsEnabled",
+    "moderationQueueEnabled",
+    "privacyReportsEnabled",
+    "removalRequestsEnabled",
+    "supportProfileEnabled"
+  ];
+  if (!hasExactKeys(health, required, ["anonymousImpactEnabled"])) return false;
+  return health.ok === true
+    && health.service === "bkota"
+    && health.contractVersion === 1
+    && health.publicFeedEnabled === true
+    && health.publicSubmissionsEnabled === true
+    && health.moderationQueueEnabled === true
+    && health.privacyReportsEnabled === true
+    && health.removalRequestsEnabled === true
+    && typeof health.supportProfileEnabled === "boolean"
+    && (!Object.hasOwn(health, "anonymousImpactEnabled") || typeof health.anonymousImpactEnabled === "boolean");
+}
+
+function recordTimestamp(item) {
+  const candidate = item.publishedAt || item.createdAt;
+  const timestamp = Date.parse(candidate);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 const feedEl = document.querySelector("#feed");
 const storyForm = document.querySelector("#bkotaForm");
 const storyStatus = document.querySelector("#formStatus");
@@ -446,7 +563,7 @@ function renderStories() {
   const items = [
     ...approvedStories.map((item) => ({ ...item, source: "approved" })),
     ...local.items.map((item) => ({ ...item, source: "private" }))
-  ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  ].sort((a, b) => recordTimestamp(b) - recordTimestamp(a));
   feedEl.replaceChildren();
   if (!local.ok) collectionNotice(feedEl, storageErrorMessage(local.code));
   if (showStoryExamples) {
@@ -466,11 +583,12 @@ function renderStories() {
     const name = item.anonymous ? "Anonymous" : String(item.name || "A friend").slice(0, 40);
     const city = item.anonymous ? "" : String(item.city || "").slice(0, 60);
     const continent = String(item.continent || "").slice(0, 20);
-    const date = Number.isNaN(Date.parse(item.createdAt)) ? "Recently" : new Date(item.createdAt).toLocaleDateString();
+    const itemDate = item.publishedAt || item.createdAt;
+    const date = Number.isNaN(Date.parse(itemDate)) ? "Recently" : new Date(itemDate).toLocaleDateString();
     const card = element("article", { className: "feed-card" });
     card.append(
       element("div", { className: "feed-meta", text: `${name}${city ? ` · ${city}` : ""}${continent ? ` · ${continent}` : ""} · ${date}` }),
-      element("div", { className: "feed-meta", text: item.source === "approved" ? "Approved community story" : item.localOnly === true ? "Private on this browser · not submitted" : "Older browser copy · submission history unknown" }),
+      element("div", { className: "feed-meta", text: item.source === "approved" ? "Approved community story" : item.localOnly === true ? privateEntryLabel : "Older browser copy · submission history unknown" }),
       element("div", { text: String(item.message || "").slice(0, 280) })
     );
     if (item.source === "approved") addReviewLink(card, "story", item.id);
@@ -505,8 +623,7 @@ storyForm.addEventListener("submit", async (event) => {
     continent: continentValue,
     anonymous: document.querySelector("#anon").checked,
     consent,
-    website: document.querySelector("#storyWebsite").value,
-    attributionCode: activeAttributionCode || undefined
+    website: document.querySelector("#storyWebsite").value.slice(0, 120)
   };
   if (submission.anonymous) {
     submission.name = "";
@@ -537,7 +654,9 @@ storyForm.addEventListener("submit", async (event) => {
   }, MAX_STORIES);
   if (!saved.ok) { storyStatus.textContent = storageErrorMessage(saved.code); return; }
   storyForm.reset();
-  storyStatus.textContent = "Saved privately in this browser—not submitted or published. Download your collection to keep a copy.";
+  storyStatus.textContent = sharedPreviewOrigin
+    ? "Kept temporarily in this open tab—not submitted or published. Download your collection before reloading or leaving."
+    : "Saved privately in this browser—not submitted or published. Download your collection to keep a copy.";
   renderStories();
 });
 
@@ -549,10 +668,10 @@ document.querySelector("#seedDemo").addEventListener("click", () => {
 });
 
 document.querySelector("#clearFeed").addEventListener("click", () => {
-  if (!confirm("Clear stories saved in this browser? Download your collection first if you want to keep it. This does not remove public stories or pending submissions.")) return;
+  if (!confirm(`Clear stories kept in ${privatePlace}? Download your collection first if you want to keep it. This does not remove public stories or pending submissions.`)) return;
   const cleared = clearCollection(browserStorage, STORAGE_KEY);
   if (!cleared.ok) { storyStatus.textContent = "The private stories could not be cleared. Browser storage is unavailable; no successful removal was confirmed."; return; }
-  storyStatus.textContent = "Private stories were cleared from this browser. Public stories and pending submissions are unchanged.";
+  storyStatus.textContent = `Private stories were cleared from ${privatePlace}. Public stories and pending submissions are unchanged.`;
   renderStories();
 });
 
@@ -565,7 +684,7 @@ function renderVideos() {
   const items = [
     ...approvedVideos.map((item) => ({ ...item, source: "approved" })),
     ...local.items.map((item) => ({ ...item, source: "private" }))
-  ].reverse();
+  ].sort((a, b) => recordTimestamp(b) - recordTimestamp(a));
   videoWall.replaceChildren();
   if (!local.ok) collectionNotice(videoWall, storageErrorMessage(local.code));
   if (showVideoExamples) {
@@ -599,7 +718,7 @@ function renderVideos() {
     link.setAttribute("aria-label", `Watch this ${safe.platform} kindness video`);
     link.append(element("span", { className: "video-watch-label", text: `Watch on ${safe.platform} ↗` }));
     const body = element("div", { className: "video-card-body" });
-    const entryStatus = item.source === "approved" ? "approved community link" : item.localOnly === true ? "private on this browser · not submitted" : "older browser copy · submission history unknown";
+    const entryStatus = item.source === "approved" ? "approved community link" : item.localOnly === true ? privateEntryLabel.toLowerCase() : "older browser copy · submission history unknown";
     body.append(element("p", { text: String(item.caption || "").slice(0, 180) }), element("span", { className: "video-platform", text: `${safe.platform} · ${entryStatus}` }));
     if (item.source === "approved") addReviewLink(body, "video", item.id);
     card.append(link, body);
@@ -622,10 +741,27 @@ videoForm.addEventListener("submit", async (event) => {
   }
   const consent = document.querySelector("#videoConsent").checked;
   if (!consent) {
-    videoStatus.textContent = "Please confirm permission to film and share from everyone identifiable. A public link alone does not establish permission.";
+    videoStatus.textContent = "Please confirm permission to film and publish from everyone identifiable. A public link alone does not establish permission.";
     return;
   }
-  const submission = { ...result, caption: caption.slice(0, 180), consent, website: document.querySelector("#videoWebsite").value, attributionCode: activeAttributionCode || undefined };
+  const postingAuthorization = document.querySelector("#videoOwnership").checked;
+  if (!postingAuthorization) {
+    videoStatus.textContent = "Please confirm that you control the posting account or have its owner's authorization to submit this link.";
+    return;
+  }
+  const noMinorsOrVulnerableMoments = document.querySelector("#videoSafety").checked;
+  if (!noMinorsOrVulnerableMoments) {
+    videoStatus.textContent = "BKOTA's initial review queue cannot accept identifiable children or private, medical, crisis, humiliating, or otherwise vulnerable moments.";
+    return;
+  }
+  const submission = {
+    ...result,
+    caption: caption.slice(0, 180),
+    consent,
+    postingAuthorization,
+    noMinorsOrVulnerableMoments,
+    website: document.querySelector("#videoWebsite").value.slice(0, 120)
+  };
   if (backendAvailable) {
     videoSubmitting = true;
     document.querySelector("#videoSubmit").disabled = true;
@@ -646,7 +782,9 @@ videoForm.addEventListener("submit", async (event) => {
   const saved = appendCollection(browserStorage, VIDEO_STORAGE_KEY, { ...submission, localOnly: true, createdAt: new Date().toISOString() }, MAX_VIDEOS);
   if (!saved.ok) { videoStatus.textContent = storageErrorMessage(saved.code); return; }
   videoForm.reset();
-  videoStatus.textContent = "Link saved privately in this browser—not submitted or published. The video stays on its original platform.";
+  videoStatus.textContent = sharedPreviewOrigin
+    ? "Link kept temporarily in this open tab—not submitted or published. Download your collection before reloading or leaving. The video stays on its original platform."
+    : "Link saved privately in this browser—not submitted or published. The video stays on its original platform.";
   renderVideos();
 });
 
@@ -658,10 +796,10 @@ document.querySelector("#seedVideos").addEventListener("click", () => {
 });
 
 document.querySelector("#clearVideos").addEventListener("click", () => {
-  if (!confirm("Clear video links saved in this browser? Download your collection first if you want to keep it. This does not delete videos from their platforms, public links, or pending submissions.")) return;
+  if (!confirm(`Clear video links kept in ${privatePlace}? Download your collection first if you want to keep it. This does not delete videos from their platforms, public links, or pending submissions.`)) return;
   const cleared = clearCollection(browserStorage, VIDEO_STORAGE_KEY);
   if (!cleared.ok) { videoStatus.textContent = "The private video links could not be cleared. Browser storage is unavailable; no successful removal was confirmed."; return; }
-  videoStatus.textContent = "Private video links were cleared from this browser. External videos, public links, and pending submissions are unchanged.";
+  videoStatus.textContent = `Private video links were cleared from ${privatePlace}. External videos, public links, and pending submissions are unchanged.`;
   renderVideos();
 });
 
@@ -692,14 +830,10 @@ document.querySelector("#downloadCollection")?.addEventListener("click", () => {
 });
 
 const venmoButton = document.querySelector("#venmoButton");
-if (config.venmoApproved === true && /^[A-Za-z0-9_-]{5,30}$/.test(config.venmoHandle || "")) {
-  venmoButton.disabled = false;
-  venmoButton.textContent = "Support Arthur on Venmo";
-  venmoButton.addEventListener("click", () => {
-    const destination = new URL(`/u/${encodeURIComponent(config.venmoHandle)}`, "https://venmo.com");
-    location.assign(destination.href);
-  });
-}
+// Financial destinations remain disabled until a live, no-store service returns
+// Arthur's independently verified profile. A public config flag or valid-looking
+// handle alone is never treated as proof of ownership.
+venmoButton.disabled = true;
 
 renderStories();
 renderVideos();
@@ -712,26 +846,30 @@ async function initializePlatform() {
     impactAvailable = false;
     approvedStories = [];
     approvedVideos = [];
-    storySubmit.textContent = "Save privately on this device";
-    document.querySelector("#videoSubmit").textContent = "Save link privately";
-    mode.textContent = "Private collection · not a public post";
-    note.textContent = "The moderated service is offline. Stories and links stay in this browser when storage is available; they are not sent to Arthur. Download a copy before clearing browser data. Opening a video link contacts its platform.";
+    storySubmit.textContent = sharedPreviewOrigin ? "Keep in this tab only" : "Save privately on this device";
+    document.querySelector("#videoSubmit").textContent = sharedPreviewOrigin ? "Keep link in this tab only" : "Save link privately";
+    mode.textContent = sharedPreviewOrigin ? "Temporary tab collection · not a public post" : "Private collection · not a public post";
+    note.textContent = sharedPreviewOrigin
+    ? "This shared preview address does not write stories or links to browser storage. They last only while this particular page instance remains available and are not sent to Arthur. Download anything you want to keep. Opening a video link contacts its platform."
+      : "The moderated service is offline. Stories and links stay in this browser when storage is available; they are not sent to Arthur. Download a copy before clearing browser data. Opening a video link contacts its platform.";
     renderStories();
     renderVideos();
+    renderStats(null);
   };
-  if (config.moderatedServiceEnabled !== true) {
+  if (config.moderatedServiceEnabled !== true || !isProductionOrigin) {
     usePrivatePreview();
     return;
   }
   try {
     const health = await api("/api/health");
-    if (health.publicSubmissionsEnabled !== true) throw new Error("Public submissions are not enabled.");
+    if (!liveServiceReady(health)) throw new Error("The complete moderated service is not ready.");
     const [stories, videos, stats] = await Promise.all([api("/api/stories"), api("/api/videos"), api("/api/stats")]);
-    const isPublicList = (items) => Array.isArray(items) && items.every((item) => item && typeof item === "object" && !Array.isArray(item));
-    if (!isPublicList(stories.items) || !isPublicList(videos.items)) throw new Error("Public feed data is unavailable.");
+    const publicStories = verifiedFeedItems(stories, isApprovedStory);
+    const publicVideos = verifiedFeedItems(videos, isApprovedVideo);
+    if (!publicStories || !publicVideos) throw new Error("Public feed data is unavailable.");
     // Public content stays in memory. Never overwrite a visitor's private collection.
-    approvedStories = stories.items;
-    approvedVideos = videos.items;
+    approvedStories = publicStories;
+    approvedVideos = publicVideos;
     backendAvailable = true;
     impactAvailable = health.anonymousImpactEnabled === true;
     if (impactAvailable) measureVisiblePageOnce();
@@ -750,15 +888,24 @@ async function initializePlatform() {
 initializePlatform();
 
 function renderStats(stats) {
-  const countText = (value) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString() : "0";
-  document.querySelector("#globalDeedCount").textContent = countText(stats?.approvedDeeds);
-  document.querySelector("#approvedVideoCount").textContent = countText(stats?.approvedVideos);
-  document.querySelector("#continentCount").textContent = countText(stats?.continentsReached);
+  const isCount = (value) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  const verified = Boolean(stats && isCount(stats.approvedDeeds) && isCount(stats.approvedVideos) && isCount(stats.continentsReached));
+  const statPairs = [
+    ["#approvedStoryStat", "#globalDeedCount", stats?.approvedDeeds],
+    ["#approvedVideoStat", "#approvedVideoCount", stats?.approvedVideos],
+    ["#continentStat", "#continentCount", stats?.continentsReached],
+  ];
+  statPairs.forEach(([wrapperSelector, countSelector, value]) => {
+    const wrapper = document.querySelector(wrapperSelector);
+    const countNode = document.querySelector(countSelector);
+    if (wrapper) wrapper.hidden = !verified;
+    if (countNode) countNode.textContent = verified ? value.toLocaleString() : "0";
+  });
   document.querySelectorAll("[data-continent]").forEach((item) => {
     const candidate = stats?.byContinent?.[item.dataset.continent];
-    const count = typeof candidate === "number" && Number.isSafeInteger(candidate) && candidate >= 0 ? candidate : 0;
-    item.classList.toggle("reached", count > 0);
-    item.title = `${count.toLocaleString()} approved kindness ${count === 1 ? "story" : "stories"}`;
+    const count = verified && isCount(candidate) ? candidate : 0;
+    item.classList.toggle("reached", verified && count > 0);
+    item.title = verified ? `${count.toLocaleString()} approved kindness ${count === 1 ? "story" : "stories"}` : "No verified public total is available yet";
   });
 }
 
@@ -767,24 +914,49 @@ function buildSharePayload() {
   const canonical = document.querySelector('link[rel="canonical"]')?.href || location.href;
   const shareUrl = new URL(canonical, location.href);
   shareUrl.search = "";
-  const configuredCode = /^[A-Za-z0-9_-]{22}$/.test(config.shareCampaignCode || "") ? config.shareCampaignCode : "";
-  shareUrl.hash = configuredCode ? `join?c=${configuredCode}` : "join";
+  shareUrl.hash = configuredCampaignCode ? `join?c=${configuredCampaignCode}` : "join";
   return { text: challengeText, url: shareUrl.href, clipboard: `${challengeText}\n${shareUrl.href}` };
+}
+
+async function shareWithDevice({ title, text, url, clipboard, status, messages }) {
+  const nativeShare = typeof navigator.share === "function";
+  const method = nativeShare ? "web-share" : "clipboard";
+  try {
+    if (nativeShare) {
+      await navigator.share({ title, text, url });
+      status.textContent = messages.nativeSuccess;
+    } else {
+      if (typeof navigator.clipboard?.writeText !== "function") throw new Error("Clipboard sharing is unavailable.");
+      await navigator.clipboard.writeText(clipboard);
+      status.textContent = messages.clipboardSuccess;
+    }
+    return { ok: true, method };
+  } catch (error) {
+    status.textContent = error?.name === "AbortError" ? messages.canceled : messages.unavailable;
+    return { ok: false, method };
+  }
 }
 
 document.querySelector("#shareMovement").addEventListener("click", async () => {
   const status = document.querySelector("#shareStatus");
   const payload = buildSharePayload();
-  const method = navigator.share ? "web-share" : "clipboard";
+  const method = typeof navigator.share === "function" ? "web-share" : "clipboard";
   const actionNonce = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : "";
   const intent = actionNonce ? sendImpact("/api/impact/share", { actionNonce, phase: "intent", method }) : Promise.resolve(false);
-  try {
-    if (navigator.share) await navigator.share({ title: "BKOTA — Be Kind One To Another", text: payload.text, url: payload.url });
-    else { await navigator.clipboard.writeText(payload.clipboard); status.textContent = "The movement invitation and website link were copied."; }
+  const result = await shareWithDevice({
+    title: "BKOTA — Be Kind One To Another",
+    ...payload,
+    status,
+    messages: {
+      nativeSuccess: "Your device closed its share choices. BKOTA cannot verify where or whether anything was posted.",
+      clipboardSuccess: "The movement invitation and website link were copied.",
+      canceled: "Sharing was canceled. Nothing was posted by BKOTA.",
+      unavailable: "Sharing was unavailable. Try Copy challenge text."
+    }
+  });
+  if (result.ok) {
     await intent;
     if (actionNonce) void sendImpact("/api/impact/share", { actionNonce, phase: "completed", method });
-  } catch (error) {
-    if (error.name !== "AbortError") status.textContent = "Sharing was unavailable. Try Copy challenge text.";
   }
 });
 
@@ -796,3 +968,107 @@ document.querySelector("#copyChallenge").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText(payload.clipboard); await intent; if (actionNonce) void sendImpact("/api/impact/share", { actionNonce, phase: "completed", method: "clipboard" }); status.textContent = "Challenge text and the BKOTA website link were copied—invite three friends."; }
   catch { status.textContent = payload.clipboard; }
 });
+
+const DAILY_ACT_VALUES = new Set(["encourage", "listen", "help", "repair", "include"]);
+const dailyActInvitation = "Arthur Farmer invites you to choose one kind act today and pass it on. Be Kind One To Another — Ephesians 4:32. #BKOTA";
+
+function buildDailyActSharePayload() {
+  const canonical = document.querySelector('link[rel="canonical"]')?.href;
+  if (typeof canonical !== "string" || canonical.trim() === "") return null;
+  try {
+    const shareUrl = new URL(canonical, location.href);
+    if (shareUrl.protocol !== "https:" || shareUrl.username || shareUrl.password) return null;
+    shareUrl.search = "";
+    const configuredCode = /^[A-Za-z0-9_-]{22}$/.test(config.shareCampaignCode || "") ? config.shareCampaignCode : "";
+    shareUrl.hash = configuredCode ? `today?c=${configuredCode}` : "today";
+    return { text: dailyActInvitation, url: shareUrl.href, clipboard: `${dailyActInvitation}\n${shareUrl.href}` };
+  } catch {
+    return null;
+  }
+}
+
+function setupDailyActFlow() {
+  const form = document.querySelector("#dailyActForm");
+  const done = document.querySelector("#dailyActDone");
+  const share = document.querySelector("#dailyActShare");
+  const status = document.querySelector("#dailyActStatus");
+  if (!form || !done || !share || !status || typeof form.querySelectorAll !== "function") return;
+
+  const choices = Array.from(form.querySelectorAll('input[name="dailyAct"]'));
+  let chosenAct = "";
+  let completed = false;
+
+  function selectedAct() {
+    const selected = choices.filter((choice) => choice.checked === true);
+    return selected.length === 1 && DAILY_ACT_VALUES.has(selected[0].value) ? selected[0].value : "";
+  }
+
+  function closeFlow(message) {
+    chosenAct = "";
+    completed = false;
+    done.checked = false;
+    done.disabled = true;
+    share.disabled = true;
+    status.textContent = message;
+  }
+
+  closeFlow("Choose one act to begin. Nothing is stored, sent, or counted.");
+
+  choices.forEach((choice) => {
+    choice.addEventListener("change", () => {
+      const nextAct = selectedAct();
+      if (!nextAct) {
+        closeFlow("That choice is unavailable. Choose one of the five listed acts.");
+        return;
+      }
+      chosenAct = nextAct;
+      completed = false;
+      done.checked = false;
+      done.disabled = false;
+      share.disabled = true;
+      status.textContent = "Choice ready. Complete it, then check the box. Nothing has been stored or sent.";
+    });
+  });
+
+  done.addEventListener("change", () => {
+    const currentAct = selectedAct();
+    if (!currentAct || currentAct !== chosenAct || done.disabled) {
+      closeFlow("Choose one of the five listed acts before marking it complete.");
+      return;
+    }
+    completed = done.checked === true;
+    share.disabled = !completed;
+    status.textContent = completed
+      ? "Marked complete in this tab only. BKOTA did not store, send, count, or verify this deed."
+      : "Completion cleared. Nothing has been stored, sent, counted, or verified.";
+  });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const currentAct = selectedAct();
+    if (!completed || !done.checked || done.disabled || !currentAct || currentAct !== chosenAct || !DAILY_ACT_VALUES.has(currentAct)) {
+      share.disabled = true;
+      status.textContent = "Complete one of the five listed acts before sharing Arthur's invitation. Nothing was posted.";
+      return;
+    }
+    const payload = buildDailyActSharePayload();
+    if (!payload) {
+      share.disabled = true;
+      status.textContent = "The safe BKOTA website link is unavailable, so sharing stayed closed. Nothing was posted.";
+      return;
+    }
+    await shareWithDevice({
+      title: "BKOTA — Be Kind One To Another",
+      ...payload,
+      status,
+      messages: {
+        nativeSuccess: "Your device closed its share choices. BKOTA cannot verify where or whether anything was posted, and it does not claim your deed was verified.",
+        clipboardSuccess: "Arthur's invitation and the BKOTA link were copied. BKOTA did not post anything or verify a deed.",
+        canceled: "Sharing was canceled. Nothing was posted by BKOTA, and no deed was recorded or verified.",
+        unavailable: "Sharing was unavailable. Nothing was posted, recorded, counted, or verified."
+      }
+    });
+  });
+}
+
+setupDailyActFlow();

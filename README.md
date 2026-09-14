@@ -6,13 +6,15 @@ Arthur Farmer's kindness movement, rooted in Ephesians 4:32. This repository con
 
 - Arthur's founder story and a people-first kindness challenge: help comes before filming, and permission comes before sharing.
 - [Merchandise studio](merch.html): large front/back views, three palettes, two lettering styles, enlarged artwork, and downloadable editable SVG designs.
+- Five premium, clearly labeled concept boards with lightweight gallery previews and full-size artwork; they are visual directions, not manufactured inventory or items for sale.
 - Ephesians 4:32 KJV: a short invitation on the shirt front and the complete verse on the back.
 - New AI-generated studio imagery with responsive WebP delivery. Original concepts are preserved and can still be opened at full size.
 - Cinematic hands-and-golden-oil artwork with separate desktop/phone compositions, layered cloud lighting, AVIF/WebP delivery, and subtle motion with pause/reduced-motion support. [Artwork provenance](docs/HERO_ARTWORK.md).
+- A dedicated 1200-by-630 social card that names Arthur and Ephesians 4:32 in the pixels, built from a retained text-free campaign source so preview copy is exact. [Social-card provenance](docs/SOCIAL_CARD.md).
 - [Scripture cards](kindness-cards.html) and the existing [downloadable card PDF](output/pdf/BKOTA-scripture-cards.pdf).
 - A browser-local collection for stories and video links, with an explicit JSON export. Approved public content and private browser entries are kept separate.
 - Consent/privacy information and fail-closed service integration. Payment and public-submission features remain disabled in `config.js` until Arthur's exact accounts are verified.
-- Root-domain preparation for `https://bkota.co/`; GoDaddy DNS and GitHub HTTPS still require live account-side verification.
+- Approved root-domain release metadata for `https://bkota.co/`; the GitHub account owns a verified `bkota.co` challenge, while traffic and HTTPS remain deployment-time checks.
 
 ## Run and verify
 
@@ -32,15 +34,16 @@ To regenerate delivery encodings from the retained image master:
 npm ci --ignore-scripts
 npm run media
 npm run media:hero
+npm run media:social
 ```
 
 Sharp is a development-only media dependency; there are no runtime CDN dependencies. The existing GitHub Pages publishing source is not changed by the quality workflow.
 
 ## Production boundaries
 
-The fallback public preview address is <https://robertashworth1986-debug.github.io/bkota/>. Code on a feature branch is not evidence that the public site or domain has been updated.
+The pre-cutover public preview address is <https://robertashworth1986-debug.github.io/bkota/>. Code on a feature branch is not evidence that the public site or domain has been updated.
 
-Arthur selected **bkota.co** to replace the Shopify storefront on September 12, 2026. The repository includes its `CNAME` and canonical metadata, but domain connection is not complete until GoDaddy serves GitHub's records, GitHub verifies the domain, HTTPS is issued, and the live pages are checked. See the [domain connection handoff](docs/DOMAIN_CONNECTION.md).
+Arthur selected **bkota.co** to replace the Shopify storefront on September 12, 2026. That day, GoDaddy accepted GitHub's exact TXT challenge and GitHub reported the domain verified. The approved cutover source now includes the root `CNAME` and `bkota.co` canonical metadata. Domain connection is still not complete until the reviewed commit is deployed, GoDaddy serves the four GitHub Pages apex addresses and `www` CNAME, GitHub issues HTTPS, and the live pages pass final checks. See the [domain connection handoff](docs/DOMAIN_CONNECTION.md).
 
 After the coordinated merge and DNS replacement, run `npm run verify:domain`. It fails closed unless the apex returns all four documented GitHub Pages IPv4 addresses, `www` is the exact Pages CNAME and redirects to the apex, HTTPS serves the BKOTA document, and the expected title, canonical URL, and scripture marker are present. Its JSON output is a verification receipt, not evidence of account ownership or payment readiness.
 

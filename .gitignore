@@ -4,4 +4,6 @@ node_modules/
 !.env.example
 dist/
 output/browser-tests/
+output/playwright/
+design-sources/
 *.log

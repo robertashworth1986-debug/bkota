@@ -65,6 +65,29 @@ test('studio includes accessible controls, flat mode, downloads, and reduced mot
   assert.ok(!/fetch\(|localStorage|sessionStorage|XMLHttpRequest|navigator\.sendBeacon/.test(source));
 });
 
+test('premium concept gallery exposes five lightweight previews and full-size boards without selling claims', async () => {
+  const concepts = [
+    '01-midnight-aureole',
+    '02-sunday-window',
+    '03-evergreen-grove',
+    '04-indigo-mended-light',
+    '05-oxblood-unity'
+  ];
+  assert.equal((html.match(/class="concept-card"/g) || []).length, 5);
+  for (const concept of concepts) {
+    const prefix = `assets/merch/bkota-concept-${concept}`;
+    assert.ok(html.includes(`${prefix}-560-v1.webp`));
+    assert.ok(html.includes(`${prefix}-v1.png`));
+    const preview = await readFile(new URL(`../${prefix}-560-v1.webp`, import.meta.url));
+    assert.equal(preview.subarray(0, 4).toString('ascii'), 'RIFF');
+    assert.equal(preview.subarray(8, 12).toString('ascii'), 'WEBP');
+  }
+  assert.ok(html.includes('Concept artwork only'));
+  const gallery = html.match(/<section class="concept-gallery"[\s\S]*?<\/section>/)[0];
+  assert.ok(gallery.includes('not manufactured shirts or items for sale'));
+  assert.ok(!/buy now|add to cart|href="[^"]*checkout/i.test(gallery));
+});
+
 test('all palette artwork inks have strong screen contrast against garment color', () => {
   function luminance(hex) {
     const rgb = hex.slice(1).match(/../g).map(pair => parseInt(pair, 16) / 255).map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);

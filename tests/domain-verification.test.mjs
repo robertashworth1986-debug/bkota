@@ -50,6 +50,22 @@ test('oversized HTML is bounded and fails closed before it can establish site id
   assert.ok(result.issues.includes('apex-html-too-large'));
 });
 
+test('www redirect rejects credentials, alternate ports, queries, fragments, and near-match hosts', async () => {
+  const locations = [
+    'https://user:pass@bkota.co/',
+    'https://bkota.co:8443/',
+    'https://bkota.co/?tracking=1',
+    'https://bkota.co/#wrong',
+    'https://not-bkota.co/'
+  ];
+  for (const location of locations) {
+    const run = harness({ wwwResponse: new Response(null, { status: 301, headers: { location } }) });
+    const result = await verifyLiveDomain({ dns: run.dns, fetchImpl: run.fetchImpl });
+    assert.equal(result.ok, false, location);
+    assert.ok(result.issues.includes('www-redirect-target'), location);
+  }
+});
+
 test('DNS and HTTPS errors are explicit and do not throw away the partial receipt', async () => {
   const dns = {
     resolve4: async () => { const error = new Error('missing'); error.code = 'ENOTFOUND'; throw error; },

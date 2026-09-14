@@ -1,6 +1,6 @@
 # bkota.co connection handoff
 
-Status refreshed September 12, 2026: **Arthur selected `bkota.co` to replace the Shopify destination; code is prepared, but GoDaddy DNS and GitHub domain verification are not complete until the live checks below pass.**
+Status refreshed September 12, 2026: **Arthur selected `bkota.co` to replace the Shopify destination and approved the go-live cutover. GoDaddy saved GitHub's exact TXT challenge and GitHub reported `bkota.co` verified. The root `CNAME` and canonical switch are now staged locally; visitor traffic still remains on Shopify until the reviewed release and website-record replacement finish.**
 
 ## Existing public state
 
@@ -23,8 +23,8 @@ The domain manager must sign into GoDaddy directly, completing any authenticatio
 
 1. Refresh the repository, deployment source, DNS zone, existing website, and account ownership. Preserve an authenticated DNS snapshot outside this public repository. Confirm the exact change and rollback records.
 2. Complete the code review/merge gate and verify the new static site on its existing Pages address. The selected canonical hostname is `bkota.co`.
-3. Verify the domain under the correct GitHub account using the actual TXT challenge GitHub supplies. Keep the verification record after success; do not invent a challenge value. [GitHub domain verification](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/verifying-your-custom-domain-for-github-pages).
-4. Add `bkota.co` to the repository's Pages settings **before** pointing DNS at Pages. Branch publishing uses the reviewed root `CNAME` file, and the static release allowlist includes it. Canonical, Open Graph, robots, and sitemap URLs use `https://bkota.co/`. [GitHub custom-domain configuration](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site).
+3. **Completed September 12, 2026:** verify the domain under the correct GitHub account using the actual TXT challenge GitHub supplied. Keep the verification record after success. [GitHub domain verification](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/verifying-your-custom-domain-for-github-pages).
+4. Add `bkota.co` to the repository's Pages settings **before** pointing DNS at Pages. The coordinated cutover source now contains the reviewed root `CNAME` file and changes canonical, Open Graph, robots, and sitemap URLs to `https://bkota.co/`; deployment remains pending final review. [GitHub custom-domain configuration](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site).
 5. In GoDaddy, replace only the Shopify website records with GitHub's current documented values. Preserve nameservers and unrelated/email records. Do not add wildcard DNS:
 
    | Type | Name | Value |
@@ -39,7 +39,7 @@ The domain manager must sign into GoDaddy directly, completing any authenticatio
    Remove the Shopify apex A record `23.227.38.32` and `www` target `shops.myshopify.com` only as part of this approved replacement. Never invent the GitHub TXT challenge.
 6. Run `npm run verify:domain`, then verify the studio, downloads, offline behavior, and forms in real desktop and phone browsers at the final URL. Record the deployed commit and receipts. The script fails closed unless the exact GitHub DNS, apex HTTPS page identity, canonical URL, and `www` redirect all pass. If HTTPS is still provisioning, report it as pending.
 
-The source now contains the reviewed custom-domain `CNAME` and root-domain metadata. The account-side GitHub setting, GoDaddy DNS mutation, Shopify cancellation, and public-submission activation remain separate actions with their own receipts. The quality workflow validates the site; it does not change DNS.
+The verification TXT step is complete and the user has approved the static go-live cutover. The repository Pages setting, reviewed deployment, Shopify website-record replacement, live HTTPS validation, Shopify subscription cancellation, and public-submission activation remain distinct receipts. The quality workflow validates the site; it does not itself change DNS.
 
 ## Public stories and video are a separate service
 
