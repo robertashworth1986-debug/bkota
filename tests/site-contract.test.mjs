@@ -69,7 +69,16 @@ for (const page of pages) {
     assert.equal(directives.get("base-uri"), "'none'");
     assert.doesNotMatch(html, /<iframe\b|\bon\w+\s*=/i);
     for (const [, tag, body] of html.matchAll(/(<script\b[^>]*>)([\s\S]*?)<\/script>/gi)) {
-      const src = attributes(tag).src;
+      const attrs = attributes(tag);
+      if (attrs.type?.toLowerCase() === "application/ld+json") {
+        assert.ok(!attrs.src, "Structured data must be an embedded data block");
+        const data = JSON.parse(body);
+        assert.equal(data["@context"], "https://schema.org");
+        assert.ok(Array.isArray(data["@graph"]));
+        assert.ok(data["@graph"].every((node) => ["WebSite", "Organization"].includes(node["@type"])));
+        continue;
+      }
+      const src = attrs.src;
       assert.ok(src && !/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(src), "Scripts must be local external files");
       assert.equal(body.trim(), "", "CSP blocks inline scripts");
     }
